@@ -1,0 +1,33 @@
+.DS_Store
+
+# Local editor and AI tooling
+.cursor/
+
+# Local backups and generated exports
+backups/
+*.csv
+*.json
+
+# Secrets and environment files
+.env
+.env.*
+*.pem
+*.p12
+*.p8
+*.key
+
+# Xcode and Swift build artifacts
+DerivedData/
+build/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserstate
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+# Swift package manager
+.build/
+Packages/
+Package.resolved
