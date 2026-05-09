@@ -1,0 +1,10 @@
+aiogram==3.13.1
+aiosqlite==0.20.0
+cryptography==43.0.3
+pydantic==2.9.2
+pydantic-settings==2.6.1
+python-dotenv==1.0.1
+tonutils==0.4.5
+pytoniq-core==0.1.40
+aiohttp==3.10.10
+tenacity==9.0.0
