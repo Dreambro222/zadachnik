@@ -46,8 +46,14 @@ def ask(
     system: str | None = None,
     timeout: int = 180,
     cwd: Path | None = None,
+    allowed_tools: list[str] | None = None,
 ) -> ClaudeResult:
-    """Run a single non-interactive Claude prompt and return its text result."""
+    """Run a single non-interactive Claude prompt and return its text result.
+
+    Pass ``allowed_tools=["WebSearch", "WebFetch"]`` for calls that need to
+    research the live web (e.g. recent fleet news). For pure-text reasoning,
+    leave it None — the CLI will run with no tools and finish faster.
+    """
     ensure_available()
     cmd = [_bin(), "-p", "--output-format", "json"]
     if system:
@@ -55,6 +61,8 @@ def ask(
     model = os.environ.get("CLAUDE_MODEL")
     if model:
         cmd.extend(["--model", model])
+    if allowed_tools:
+        cmd.extend(["--allowedTools", ",".join(allowed_tools)])
     cmd.append(prompt)
 
     try:
@@ -107,6 +115,7 @@ def ask_json(
     *,
     system: str | None = None,
     timeout: int = 180,
+    allowed_tools: list[str] | None = None,
 ) -> dict[str, Any]:
     """Run a prompt that must return JSON; parse it leniently."""
     extra = (
@@ -114,7 +123,7 @@ def ask_json(
         "If you cannot comply, return {\"error\": \"<short reason>\"}."
     )
     sys_prompt = f"{system}\n\n{extra}" if system else extra
-    res = ask(prompt, system=sys_prompt, timeout=timeout)
+    res = ask(prompt, system=sys_prompt, timeout=timeout, allowed_tools=allowed_tools)
     text = res.text.strip()
 
     # Strip code fences if the model added them anyway

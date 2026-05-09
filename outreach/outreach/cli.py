@@ -1,31 +1,40 @@
 """Typer CLI for the outreach toolkit.
 
-Usage:
-  python -m outreach init
-  python -m outreach import data/leads.csv
-  python -m outreach analyze --limit 5
-  python -m outreach plan <lead_id>
-  python -m outreach approve --all | --id 12 | --batch 10
-  python -m outreach send                     # dry-run by default
-  python -m outreach send --live              # actually submit forms
-  python -m outreach status
-  python -m outreach report
+Pipeline:
+
+    init                       create the SQLite DB
+    import <file.csv>          ingest leads
+    research [--limit N]       Playwright + Claude (with WebSearch) → deep
+                               per-company research saved on each lead
+    plan [--limit N]           generate full multi-turn conversation playbook
+                               from each lead's research
+    analyze [--limit N]        shorthand: research + plan in one go
+    playbook <id>              export ONE lead's playbook to markdown
+    playbooks                  export EVERY lead's playbook into one big file
+    approve / send             contact-form submission (dry-run by default)
+    reply <id>                 paste an inbound reply, get classification
+                               + suggested next move from the prepared plan
+    status / report            dashboard + CSV
 """
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Optional
 
 import typer
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.table import Table
 
-from . import analyzer, config, db, form_filler, importer, reporter
+from . import config, conversation, db, form_filler, importer, playbook, reporter, research
 
 app = typer.Typer(add_completion=False, help="Automated lead outreach")
 console = Console()
 
+
+# ---------- core lifecycle ----------
 
 @app.command()
 def init() -> None:
@@ -46,12 +55,85 @@ def import_cmd(file: Path) -> None:
     )
 
 
-@app.command()
-def analyze(
-    limit: int = typer.Option(0, help="Max leads to analyze (0 = all 'new')"),
-    only_id: Optional[int] = typer.Option(None, "--id", help="Analyze a single lead"),
+@app.command("research")
+def research_cmd(
+    limit: int = typer.Option(0, help="Max leads to research (0 = all 'new')"),
+    only_id: Optional[int] = typer.Option(None, "--id"),
+    refresh: bool = typer.Option(False, help="Re-research even if already done"),
 ) -> None:
-    """Fetch + analyze each new lead's site, generate offer, save plan."""
+    """Run deep per-lead research (Playwright + Claude + WebSearch)."""
+    config.load_env()
+
+    with db.session() as conn:
+        if only_id:
+            row = db.get_lead(conn, only_id)
+            leads = [row] if row else []
+        else:
+            statuses = ["new"] if not refresh else ["new", "skipped", "failed", "analyzed"]
+            leads = db.fetch_leads(conn, status=statuses, limit=limit or None)
+
+        if not leads:
+            console.print("[yellow]No leads to research[/yellow]")
+            return
+
+        for lead in leads:
+            lead_dict = dict(lead)
+            console.rule(f"[bold]#{lead['id']} {lead['company']}")
+
+            if lead["channel"] == "tender_only":
+                console.print(
+                    f"[yellow]tender-only ({lead['category']}) — skipping[/yellow]"
+                )
+                db.update_lead(conn, lead["id"], status="skipped",
+                               last_error="tender-only category")
+                conn.commit()
+                continue
+
+            if lead["research"] and not refresh:
+                console.print("[cyan]already researched — use --refresh to redo[/cyan]")
+                continue
+
+            try:
+                result = research.deep_research(lead_dict)
+            except Exception as exc:  # noqa: BLE001
+                console.print(f"[red]research failed:[/red] {exc}")
+                db.update_lead(conn, lead["id"], status="failed",
+                               last_error=str(exc)[:500])
+                conn.commit()
+                continue
+
+            if result.get("skip"):
+                console.print(f"[yellow]skip:[/yellow] {result.get('skip_reason')}")
+                db.update_lead(
+                    conn, lead["id"],
+                    status="skipped",
+                    last_error=result.get("skip_reason"),
+                    research=json.dumps(result, ensure_ascii=False),
+                )
+            else:
+                console.print(
+                    f"[green]ok[/green] | {result.get('chinese_exposure', '?')} chinese · "
+                    f"{len(result.get('pain_points') or [])} pains · "
+                    f"{len(result.get('recommended_models') or [])} models suggested"
+                )
+                db.update_lead(
+                    conn, lead["id"],
+                    status="researched",
+                    research=json.dumps(result, ensure_ascii=False),
+                    site_summary=result.get("business_model"),
+                    language=result.get("site_language"),
+                    last_error=None,
+                )
+            conn.commit()
+
+
+@app.command()
+def plan(
+    limit: int = typer.Option(0, help="Max leads to plan (0 = all researched)"),
+    only_id: Optional[int] = typer.Option(None, "--id"),
+    refresh: bool = typer.Option(False, help="Re-plan even if already done"),
+) -> None:
+    """Generate full multi-turn conversation playbook from each lead's research."""
     config.load_env()
     sender = config.load_sender()
     base_offer = config.load_offer()
@@ -61,110 +143,172 @@ def analyze(
             row = db.get_lead(conn, only_id)
             leads = [row] if row else []
         else:
-            leads = db.fetch_leads(conn, status="new", limit=limit or None)
+            leads = db.fetch_leads(conn, status="researched", limit=limit or None)
 
         if not leads:
-            console.print("[yellow]No leads to analyze[/yellow]")
+            console.print(
+                "[yellow]No researched leads. Run `outreach research` first.[/yellow]"
+            )
             return
 
         for lead in leads:
-            lead_dict = dict(lead)
             console.rule(f"[bold]#{lead['id']} {lead['company']}")
 
-            # Tender-only categories never go through cold form-fill.
-            if lead["channel"] == "tender_only":
-                console.print(
-                    f"[yellow]tender-only ({lead['category']}) — "
-                    f"register on supplier portal, do not cold-form[/yellow]"
-                )
-                db.update_lead(
-                    conn, lead["id"], status="skipped",
-                    last_error="tender-only category",
-                )
-                conn.commit()
+            if not lead["research"]:
+                console.print("[red]no research on this lead — skipping[/red]")
+                continue
+            if lead["conversation"] and not refresh:
+                console.print("[cyan]already planned — use --refresh to redo[/cyan]")
                 continue
 
+            research_blob = json.loads(lead["research"])
             try:
-                analysis = analyzer.analyze_site(lead_dict)
-            except Exception as exc:  # noqa: BLE001
-                console.print(f"[red]analyze failed:[/red] {exc}")
-                db.update_lead(conn, lead["id"], status="failed", last_error=str(exc)[:500])
-                conn.commit()
-                continue
-
-            if analysis.get("error"):
-                console.print(f"[yellow]skipped:[/yellow] {analysis['error']}")
-                db.update_lead(conn, lead["id"], status="skipped",
-                               last_error=analysis["error"])
-                conn.commit()
-                continue
-
-            try:
-                offer = analyzer.personalize_offer(
-                    lead_dict, analysis, sender, base_offer,
+                result = conversation.plan_conversation(
+                    dict(lead), research_blob, sender, base_offer,
                     channel=lead["channel"] or "form",
                 )
             except Exception as exc:  # noqa: BLE001
-                console.print(f"[red]offer gen failed:[/red] {exc}")
-                db.update_lead(conn, lead["id"], status="failed", last_error=str(exc)[:500])
+                console.print(f"[red]plan failed:[/red] {exc}")
+                db.update_lead(conn, lead["id"], status="failed",
+                               last_error=str(exc)[:500])
                 conn.commit()
                 continue
 
-            if offer.get("skip"):
-                console.print(f"[yellow]LLM skipped:[/yellow] {offer.get('skip_reason')}")
+            if result.get("skip"):
+                console.print(f"[yellow]skip:[/yellow] {result.get('skip_reason')}")
                 db.update_lead(
                     conn, lead["id"],
                     status="skipped",
-                    last_error=offer.get("skip_reason"),
-                    site_summary=analysis.get("summary"),
-                    language=analysis.get("language"),
+                    last_error=result.get("skip_reason"),
+                    conversation=json.dumps(result, ensure_ascii=False),
                 )
-                conn.commit()
-                continue
-
-            plan = {"analysis": analysis, "offer": offer}
-            db.update_lead(
-                conn, lead["id"],
-                status="analyzed",
-                site_summary=analysis.get("summary"),
-                language=analysis.get("language"),
-                offer_text=offer.get("body"),
-                form_plan=json.dumps(plan, ensure_ascii=False),
-                last_error=None,
-            )
+            else:
+                ft = result.get("first_touch") or {}
+                obj_count = len(result.get("objection_handlers") or [])
+                fu_count = len(result.get("followups") or [])
+                console.print(
+                    f"[green]ok[/green] | subj=\"{ft.get('subject', '')}\" "
+                    f"· {obj_count} objections · {fu_count} follow-ups"
+                )
+                db.update_lead(
+                    conn, lead["id"],
+                    status="analyzed",   # ready for approve / send
+                    conversation=json.dumps(result, ensure_ascii=False),
+                    offer_text=ft.get("body"),
+                    current_step="first_touch",
+                    last_error=None,
+                )
             conn.commit()
-            console.print(
-                f"[green]ready[/green] | {analysis.get('industry')} | "
-                f"subj=“{offer.get('subject')}”"
-            )
 
 
 @app.command()
-def plan(lead_id: int) -> None:
-    """Show the generated offer + analysis for a lead."""
+def analyze(
+    limit: int = typer.Option(0, help="Max leads to process"),
+    only_id: Optional[int] = typer.Option(None, "--id"),
+) -> None:
+    """Convenience: research + plan, in one pass."""
+    research_cmd(limit=limit, only_id=only_id, refresh=False)
+    plan(limit=limit, only_id=only_id, refresh=False)
+
+
+# ---------- review surface ----------
+
+@app.command("playbook")
+def playbook_cmd(
+    lead_id: int,
+    show: bool = typer.Option(True, help="Print rendered markdown to stdout"),
+) -> None:
+    """Export ONE lead's full playbook to playbooks/leadXX-<slug>.md."""
+    out = playbook.export_lead(lead_id)
+    console.print(f"[green]Wrote[/green] {out}")
+    if show:
+        console.print(Markdown(out.read_text(encoding="utf-8")))
+
+
+@app.command("playbooks")
+def playbooks_cmd() -> None:
+    """Export every lead's playbook into one combined markdown file."""
+    out = playbook.export_all()
+    console.print(f"[green]Wrote[/green] {out}")
+
+
+# ---------- inbound replies ----------
+
+@app.command("reply")
+def reply_cmd(
+    lead_id: int,
+    subject: str = typer.Option("", help="Reply subject"),
+    sender_email: str = typer.Option("", "--from", help="Reply sender address"),
+    body_file: Optional[Path] = typer.Option(
+        None, "--body-file",
+        help="Path to a file with the reply body. If omitted, read stdin.",
+    ),
+) -> None:
+    """Classify an inbound reply against the prepared playbook + suggest the
+    next move. The reply is logged to the messages table.
+    """
+    if body_file and body_file.exists():
+        body = body_file.read_text(encoding="utf-8")
+    else:
+        console.print("[dim]Paste the reply body, then Ctrl-D to finish:[/dim]")
+        body = sys.stdin.read()
+
+    if not body.strip():
+        raise typer.BadParameter("Empty reply body")
+
     with db.session() as conn:
         lead = db.get_lead(conn, lead_id)
-    if not lead:
-        raise typer.Exit("Lead not found")
-    console.rule(f"#{lead['id']} {lead['company']}  [{lead['status']}]")
-    console.print(f"[bold]Website:[/bold] {lead['website']}")
-    console.print(f"[bold]Form URL:[/bold] {lead['form_url']}")
-    console.print(f"[bold]Channel:[/bold] {lead['channel']}")
-    console.print(f"[bold]Language:[/bold] {lead['language']}")
-    console.print(f"[bold]Summary:[/bold] {lead['site_summary']}")
-    if lead["form_plan"]:
-        try:
-            plan = json.loads(lead["form_plan"])
-        except json.JSONDecodeError:
-            plan = {}
-        offer = plan.get("offer", {})
-        console.rule("Offer")
-        console.print(f"[bold]Subject:[/bold] {offer.get('subject')}")
-        console.print(f"[bold]First line:[/bold] {offer.get('first_line')}")
-        console.print(f"[bold]CTA:[/bold] {offer.get('cta')}")
-        console.print()
-        console.print(offer.get("body") or "")
+        if not lead:
+            raise typer.Exit("Lead not found")
+        plan_blob = json.loads(lead["conversation"] or "{}")
+        if not plan_blob:
+            raise typer.Exit("This lead has no conversation plan yet — run `plan` first")
 
+        history = [dict(m) for m in db.message_history(conn, lead_id)]
+
+        db.record_message(
+            conn, lead_id,
+            direction="inbound",
+            channel="email",
+            subject=subject or None,
+            body=body,
+            raw=json.dumps({"from": sender_email}, ensure_ascii=False),
+        )
+        conn.commit()
+
+        verdict = conversation.classify_reply(
+            dict(lead), plan_blob, history,
+            {"subject": subject, "body": body, "from": sender_email},
+        )
+
+        # Update the inbound message with the classification.
+        conn.execute(
+            """UPDATE messages SET classification = ?, confidence = ?
+               WHERE lead_id = ? AND id = (SELECT MAX(id) FROM messages WHERE lead_id = ?)""",
+            (verdict.get("classification"), verdict.get("confidence"),
+             lead_id, lead_id),
+        )
+        conn.commit()
+
+    console.rule(f"[bold]#{lead_id} {lead['company']}: reply classification")
+    console.print(f"**Class:** {verdict.get('classification')} · "
+                  f"sentiment {verdict.get('sentiment')} · "
+                  f"urgency {verdict.get('urgency')} · "
+                  f"conf {verdict.get('confidence')}")
+    if verdict.get("matched_objection_key"):
+        console.print(f"**Matched objection:** {verdict['matched_objection_key']}")
+    console.print(f"**Recommended action:** {verdict.get('recommended_action')}")
+    console.print(f"**Rationale:** {verdict.get('rationale')}")
+    if verdict.get("must_human_review"):
+        console.print("[red]🚨 must_human_review = true[/red]")
+    if verdict.get("suggested_subject") or verdict.get("suggested_body"):
+        console.rule("Suggested response")
+        if verdict.get("suggested_subject"):
+            console.print(f"**Subject:** {verdict['suggested_subject']}")
+        console.print(verdict.get("suggested_body") or "")
+
+
+# ---------- approval + send ----------
 
 @app.command()
 def approve(
@@ -181,8 +325,9 @@ def approve(
             db.update_lead(conn, only_id, status="approved")
             count = 1
         else:
-            leads = db.fetch_leads(conn, status="analyzed", limit=batch or None) if not all_ else \
-                    db.fetch_leads(conn, status="analyzed")
+            leads = (db.fetch_leads(conn, status="analyzed")
+                     if all_ else
+                     db.fetch_leads(conn, status="analyzed", limit=batch or None))
             count = 0
             for lead in leads:
                 db.update_lead(conn, lead["id"], status="approved")
@@ -196,7 +341,7 @@ def send(
     limit: int = typer.Option(0, help="Limit number of leads (0 = all approved)"),
     only_id: Optional[int] = typer.Option(None, "--id"),
 ) -> None:
-    """Submit contact forms for approved leads."""
+    """Submit contact forms for approved leads using their first_touch message."""
     config.load_env()
     sender = config.load_sender()
 
@@ -210,7 +355,7 @@ def send(
             leads = db.fetch_leads(conn, status="approved", limit=limit or None)
 
         if not leads:
-            console.print("[yellow]No approved leads.[/yellow] Run `analyze` and `approve` first.")
+            console.print("[yellow]No approved leads.[/yellow]")
             return
 
         for lead in leads:
@@ -218,30 +363,32 @@ def send(
             target = lead["form_url"] or lead["website"]
             if not target:
                 console.print("[yellow]no URL — skipping[/yellow]")
-                db.update_lead(conn, lead["id"], status="skipped", last_error="no URL")
+                db.update_lead(conn, lead["id"], status="skipped",
+                               last_error="no URL")
                 conn.commit()
                 continue
 
             if lead["channel"] == "tender_only":
-                console.print(f"[yellow]tender-only ({lead['category']}) — skipping[/yellow]")
+                console.print(f"[yellow]tender-only — skipping[/yellow]")
                 continue
             if (lead["channel"] or "form") != "form":
-                console.print(f"[yellow]channel {lead['channel']} not yet implemented — skipping[/yellow]")
+                console.print(
+                    f"[yellow]channel {lead['channel']} not yet implemented — skipping[/yellow]"
+                )
                 continue
 
-            try:
-                plan = json.loads(lead["form_plan"] or "{}")
-            except json.JSONDecodeError:
-                plan = {}
-            offer = plan.get("offer") or {}
-            body = (offer.get("body") or "").strip()
-            footer = (offer.get("compliance_footer") or "").strip()
-            subject = offer.get("subject")
+            plan_blob = json.loads(lead["conversation"] or "{}")
+            ft = (plan_blob.get("first_touch") or {})
+            body = (ft.get("body") or "").strip()
+            footer = (ft.get("compliance_footer") or "").strip()
+            subject = ft.get("subject")
             if not body:
-                console.print("[red]no message — run `analyze` first[/red]")
+                console.print("[red]no first_touch body — run `plan` first[/red]")
                 continue
             if not footer:
-                console.print("[red]missing compliance footer (POPIA s.69) — refusing to send[/red]")
+                console.print(
+                    "[red]missing compliance footer (POPIA s.69) — refusing[/red]"
+                )
                 db.update_lead(conn, lead["id"], status="failed",
                                last_error="missing compliance_footer")
                 conn.commit()
@@ -262,7 +409,8 @@ def send(
                 )
             except Exception as exc:  # noqa: BLE001
                 console.print(f"[red]fill error:[/red] {exc}")
-                db.update_lead(conn, lead["id"], status="failed", last_error=str(exc)[:500])
+                db.update_lead(conn, lead["id"], status="failed",
+                               last_error=str(exc)[:500])
                 conn.commit()
                 continue
 
@@ -278,7 +426,6 @@ def send(
                     success=False,
                     error="dry-run",
                 )
-                # status stays "approved" so user can re-run with --live
                 conn.commit()
                 continue
 
@@ -291,17 +438,26 @@ def send(
                 screenshot=outcome.screenshots[-1] if outcome.screenshots else None,
             )
             if outcome.success:
+                db.record_message(
+                    conn, lead["id"],
+                    direction="outbound", channel="form", step="first_touch",
+                    subject=subject, body=message,
+                )
                 console.print(f"[green]sent[/green] — {outcome.confirmation or 'OK'}")
-                db.update_lead(conn, lead["id"], status="sent", last_error=None)
+                db.update_lead(conn, lead["id"], status="sent", last_error=None,
+                               current_step="first_touch_sent")
             elif outcome.aborted:
                 console.print(f"[yellow]aborted:[/yellow] {outcome.abort_reason}")
                 db.update_lead(conn, lead["id"], status="skipped",
                                last_error=outcome.abort_reason)
             else:
                 console.print(f"[red]failed:[/red] {outcome.error}")
-                db.update_lead(conn, lead["id"], status="failed", last_error=outcome.error)
+                db.update_lead(conn, lead["id"], status="failed",
+                               last_error=outcome.error)
             conn.commit()
 
+
+# ---------- dashboards ----------
 
 @app.command()
 def status() -> None:
@@ -313,8 +469,8 @@ def status() -> None:
     table = Table(title=f"Leads ({total} total)")
     table.add_column("Status")
     table.add_column("Count", justify="right")
-    for status_name in ("new", "analyzed", "approved", "sending", "sent",
-                        "failed", "skipped", "replied"):
+    for status_name in ("new", "researched", "analyzed", "approved", "sending",
+                        "sent", "failed", "skipped", "replied"):
         table.add_row(status_name, str(counts.get(status_name, 0)))
     console.print(table)
 

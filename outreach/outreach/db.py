@@ -38,9 +38,32 @@ CREATE TABLE IF NOT EXISTS leads (
     contact_role    TEXT,                 -- e.g. "Group CEO", "MD", "Procurement Director"
     do_form_outreach INTEGER NOT NULL DEFAULT 1,
         -- 0 for tender-only categories (gov / mining / corporate / industry assoc)
+
+    -- deep research + multi-turn conversation playbook
+    research        TEXT,                 -- JSON: deep_research(lead) output
+    conversation    TEXT,                 -- JSON: full plan_conversation() output
+    current_step    TEXT,                 -- 'first_touch' | 'followup_1' | 'discovery' | 'closed' | …
+    next_action_at  TEXT,                 -- ISO timestamp for when the next touch is due
+
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS messages (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_id     INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+    direction   TEXT NOT NULL,            -- outbound | inbound
+    channel     TEXT NOT NULL,            -- form | email | linkedin | manual
+    step        TEXT,                     -- first_touch | followup_1 | objection_<key> | discovery | close | nurture
+    subject     TEXT,
+    body        TEXT,
+    classification TEXT,                  -- inbound only: interested | objection_<key> | not_now | no | auto_reply | unsubscribe | unclear
+    confidence  REAL,                     -- 0..1
+    raw         TEXT,                     -- raw payload (full email / form-thank-you snippet)
+    created_at  TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_lead ON messages(lead_id, created_at);
 
 CREATE TABLE IF NOT EXISTS attempts (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,8 +109,26 @@ def init_db(db_path: Path | None = None) -> Path:
     path = db_path or DB_PATH
     with connect(path) as conn:
         conn.executescript(SCHEMA)
+        _migrate(conn)
         conn.commit()
     return path
+
+
+# Columns added after the first release. ALTER TABLE ADD COLUMN is idempotent
+# only via try/except in SQLite, so we list them explicitly.
+_DEFERRED_LEAD_COLUMNS = [
+    ("research",       "TEXT"),
+    ("conversation",   "TEXT"),
+    ("current_step",   "TEXT"),
+    ("next_action_at", "TEXT"),
+]
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    existing = {row["name"] for row in conn.execute("PRAGMA table_info(leads)")}
+    for name, sql_type in _DEFERRED_LEAD_COLUMNS:
+        if name not in existing:
+            conn.execute(f"ALTER TABLE leads ADD COLUMN {name} {sql_type}")
 
 
 @contextmanager
@@ -202,6 +243,40 @@ def record_attempt(
         ),
     )
     return cur.lastrowid
+
+
+def record_message(
+    conn: sqlite3.Connection,
+    lead_id: int,
+    *,
+    direction: str,
+    channel: str,
+    step: str | None = None,
+    subject: str | None = None,
+    body: str | None = None,
+    classification: str | None = None,
+    confidence: float | None = None,
+    raw: str | None = None,
+) -> int:
+    cur = conn.execute(
+        """
+        INSERT INTO messages (lead_id, direction, channel, step, subject, body,
+                              classification, confidence, raw, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (lead_id, direction, channel, step, subject, body,
+         classification, confidence, raw, now_iso()),
+    )
+    return cur.lastrowid
+
+
+def message_history(conn: sqlite3.Connection, lead_id: int) -> list[sqlite3.Row]:
+    return list(
+        conn.execute(
+            "SELECT * FROM messages WHERE lead_id = ? ORDER BY id",
+            (lead_id,),
+        )
+    )
 
 
 def status_counts(conn: sqlite3.Connection) -> dict[str, int]:
