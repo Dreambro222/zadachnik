@@ -1,0 +1,6 @@
+company,website,email,linkedin,form_url,country,notes
+ExampleAuto OU,https://example-auto.ee,info@example-auto.ee,,https://example-auto.ee/contact,Estonia,Toyota dealer
+RentARide,https://rentaride.example,,https://www.linkedin.com/company/rentaride,,Estonia,Car rental
+GarageX,https://garagex.example,,,https://garagex.example/cooperation,Latvia,Service center
+FleetPlus,,fleet@fleetplus.example,https://www.linkedin.com/company/fleetplus,,Estonia,
+LeasingHub,https://leasinghub.example,,,,Estonia,No contact info — try website form

@@ -1,0 +1,11 @@
+typer>=0.12
+rich>=13.7
+playwright>=1.45
+openpyxl>=3.1
+pandas>=2.2
+beautifulsoup4>=4.12
+lxml>=5.2
+tldextract>=5.1
+python-dotenv>=1.0
+PyYAML>=6.0
+pydantic>=2.7

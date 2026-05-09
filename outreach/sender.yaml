@@ -1,0 +1,9 @@
+# Identity that gets pasted into contact forms.
+# Override individual fields here; falls back to .env values.
+name: "Your Name"
+company: "Your Company OU"
+email: "you@example.com"
+phone: "+372 5000 0000"
+website: "https://example.com"
+country: "Estonia"
+role: "Partnerships"
