@@ -115,14 +115,21 @@ def personalize_offer(
         "LEAD": {
             "company": lead.get("company"),
             "website": lead.get("website"),
+            "category": lead.get("category"),
+            "priority": lead.get("priority"),
+            "hq_city": lead.get("hq_city"),
+            "contact_name": lead.get("contact_name"),
+            "contact_role": lead.get("contact_role"),
+            "notes": lead.get("notes"),
             "industry": analysis.get("industry"),
             "summary": analysis.get("summary"),
+            "language": analysis.get("language"),
+            "audience": analysis.get("audience"),
             "personalization_hooks": analysis.get("personalization_hooks") or [],
             "red_flags": analysis.get("red_flags") or [],
-            "audience": analysis.get("audience"),
         },
         "SENDER": sender,
-        "CONTEXT": {"channel": channel, "max_chars": 1200 if channel == "form" else 1800},
+        "CONTEXT": {"channel": channel, "max_chars": 1500 if channel == "form" else 1800},
     }
     return claude_runner.ask_json(
         json.dumps(prompt_input, ensure_ascii=False),

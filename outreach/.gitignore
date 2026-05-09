@@ -5,6 +5,7 @@
 data/*.csv
 data/*.xlsx
 !data/leads.example.csv
+!data/leads.za.csv
 reports/*.csv
 reports/*.json
 screenshots/*.png

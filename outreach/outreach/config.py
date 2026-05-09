@@ -29,13 +29,15 @@ def load_sender() -> dict[str, Any]:
         return base.get(key) or os.environ.get(env_key) or ""
 
     return {
-        "name":    _env_or("name",    "SENDER_NAME"),
-        "company": _env_or("company", "SENDER_COMPANY"),
-        "email":   _env_or("email",   "SENDER_EMAIL"),
-        "phone":   _env_or("phone",   "SENDER_PHONE"),
-        "website": _env_or("website", "SENDER_WEBSITE"),
-        "country": base.get("country") or "",
-        "role":    base.get("role") or "",
+        "name":          _env_or("name",    "SENDER_NAME"),
+        "company":       _env_or("company", "SENDER_COMPANY"),
+        "email":         _env_or("email",   "SENDER_EMAIL"),
+        "phone":         _env_or("phone",   "SENDER_PHONE"),
+        "website":       _env_or("website", "SENDER_WEBSITE"),
+        "country":       base.get("country") or "",
+        "role":          base.get("role") or "",
+        "address":       base.get("address") or "",
+        "product_short": base.get("product_short") or "",
     }
 
 

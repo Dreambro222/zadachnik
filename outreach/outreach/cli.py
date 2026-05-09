@@ -70,6 +70,20 @@ def analyze(
         for lead in leads:
             lead_dict = dict(lead)
             console.rule(f"[bold]#{lead['id']} {lead['company']}")
+
+            # Tender-only categories never go through cold form-fill.
+            if lead["channel"] == "tender_only":
+                console.print(
+                    f"[yellow]tender-only ({lead['category']}) — "
+                    f"register on supplier portal, do not cold-form[/yellow]"
+                )
+                db.update_lead(
+                    conn, lead["id"], status="skipped",
+                    last_error="tender-only category",
+                )
+                conn.commit()
+                continue
+
             try:
                 analysis = analyzer.analyze_site(lead_dict)
             except Exception as exc:  # noqa: BLE001
@@ -208,6 +222,9 @@ def send(
                 conn.commit()
                 continue
 
+            if lead["channel"] == "tender_only":
+                console.print(f"[yellow]tender-only ({lead['category']}) — skipping[/yellow]")
+                continue
             if (lead["channel"] or "form") != "form":
                 console.print(f"[yellow]channel {lead['channel']} not yet implemented — skipping[/yellow]")
                 continue
@@ -217,11 +234,19 @@ def send(
             except json.JSONDecodeError:
                 plan = {}
             offer = plan.get("offer") or {}
-            message = offer.get("body") or ""
+            body = (offer.get("body") or "").strip()
+            footer = (offer.get("compliance_footer") or "").strip()
             subject = offer.get("subject")
-            if not message:
+            if not body:
                 console.print("[red]no message — run `analyze` first[/red]")
                 continue
+            if not footer:
+                console.print("[red]missing compliance footer (POPIA s.69) — refusing to send[/red]")
+                db.update_lead(conn, lead["id"], status="failed",
+                               last_error="missing compliance_footer")
+                conn.commit()
+                continue
+            message = f"{body}\n\n{footer}"
 
             db.update_lead(conn, lead["id"], status="sending", last_error=None)
             conn.commit()

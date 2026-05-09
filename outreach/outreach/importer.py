@@ -14,13 +14,30 @@ from . import db
 # Order matters: more specific targets MUST be matched before generic ones
 # (e.g. "form_url" before "website", because "url" is a substring of "form_url").
 COLUMN_HINTS: dict[str, list[str]] = {
-    "form_url": ["form_url", "form url", "contact_url", "form", "contact", "контакт"],
-    "linkedin": ["linkedin", "li_url", "li-url"],
-    "email":    ["email", "e-mail", "mail", "почта"],
-    "website":  ["website", "homepage", "domain", "url", "site", "сайт"],
-    "company":  ["company", "organization", "firma", "компани", "name"],
-    "country":  ["country", "страна"],
-    "notes":    ["note", "comment", "коммент"],
+    "form_url":     ["form_url", "form url", "contact_url", "b2b", "form", "contact", "контакт"],
+    "linkedin":     ["linkedin", "li_url", "li-url"],
+    "email":        ["email", "e-mail", "mail", "почта"],
+    "phone":        ["phone", "tel", "телефон"],
+    "website":      ["website", "homepage", "domain", "url", "site", "сайт"],
+    "category":     ["category", "segment", "сегмент"],
+    "priority":     ["priority", "pri", "tier", "приоритет"],
+    "hq_city":      ["hq_city", "hq city", "city", "город"],
+    "contact_name": ["contact_name", "ceo", "md", "managing", "контакт_имя"],
+    "contact_role": ["contact_role", "role", "title", "должность"],
+    "company":      ["company", "organization", "firma", "компани", "name"],
+    "country":      ["country", "страна"],
+    "notes":        ["note", "comment", "коммент"],
+}
+
+# Categories that should NOT receive cold-form outreach. Per SA market reality:
+# gov fleet / mining / large corporates / industry associations buy via tenders
+# (CSD, Coupa, Ariba) or are intel-only — cold form-fills will be ignored or
+# get the sender flagged. Channel becomes "tender_only".
+TENDER_ONLY_CATEGORIES = {
+    "Government Fleet",
+    "Mining Fleet",
+    "Corporate Fleet",
+    "Industry Assoc",
 }
 
 EMAIL_RE = re.compile(r"[\w.\-+]+@[\w.\-]+\.\w+")
@@ -52,6 +69,9 @@ def _read_table(path: Path) -> pd.DataFrame:
 
 
 def _detect_channel(row: dict[str, Any]) -> str:
+    # Tender-only categories: never cold-form, always go via supplier portals.
+    if (row.get("category") or "").strip() in TENDER_ONLY_CATEGORIES:
+        return "tender_only"
     if row.get("form_url"):
         return "form"
     if row.get("email"):
@@ -112,6 +132,7 @@ def import_file(path: Path, db_path: Path | None = None) -> dict[str, int]:
 
             row["raw"] = {str(k): str(v) for k, v in raw_row.items()}
             row["channel"] = _detect_channel(row)
+            row["do_form_outreach"] = row["channel"] not in ("tender_only", "none")
             by_channel[row["channel"]] = by_channel.get(row["channel"], 0) + 1
             db.insert_lead(conn, row)
             inserted += 1

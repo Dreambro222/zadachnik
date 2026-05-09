@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS leads (
     country         TEXT,
     notes           TEXT,
     raw             TEXT,                 -- original CSV row as JSON
-    channel         TEXT,                 -- form | email | linkedin | none
+    channel         TEXT,                 -- form | email | linkedin | tender_only | none
     language        TEXT,                 -- detected site language
     site_summary    TEXT,                 -- LLM-extracted company summary
     offer_text      TEXT,                 -- personalized offer for this lead
@@ -29,6 +29,15 @@ CREATE TABLE IF NOT EXISTS leads (
     status          TEXT NOT NULL DEFAULT 'new',
         -- new | analyzed | approved | sending | sent | failed | skipped | replied
     last_error      TEXT,
+    -- segmentation
+    category        TEXT,                 -- Dealer Group | Rental & Fleet | Taxi-Recap & Minibus | …
+    priority        TEXT,                 -- A | B | C
+    hq_city         TEXT,
+    phone           TEXT,
+    contact_name    TEXT,                 -- primary CEO/MD/buyer
+    contact_role    TEXT,                 -- e.g. "Group CEO", "MD", "Procurement Director"
+    do_form_outreach INTEGER NOT NULL DEFAULT 1,
+        -- 0 for tender-only categories (gov / mining / corporate / industry assoc)
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
@@ -99,8 +108,12 @@ def insert_lead(conn: sqlite3.Connection, lead: dict[str, Any]) -> int:
         """
         INSERT INTO leads (company, website, email, linkedin, form_url,
                            country, notes, raw, channel, status,
+                           category, priority, hq_city, phone,
+                           contact_name, contact_role, do_form_outreach,
                            created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new',
+                ?, ?, ?, ?, ?, ?, ?,
+                ?, ?)
         """,
         (
             lead.get("company") or "(unknown)",
@@ -112,6 +125,13 @@ def insert_lead(conn: sqlite3.Connection, lead: dict[str, Any]) -> int:
             lead.get("notes"),
             json.dumps(lead.get("raw") or {}, ensure_ascii=False),
             lead.get("channel"),
+            lead.get("category"),
+            lead.get("priority"),
+            lead.get("hq_city"),
+            lead.get("phone"),
+            lead.get("contact_name"),
+            lead.get("contact_role"),
+            1 if lead.get("do_form_outreach", True) else 0,
             ts,
             ts,
         ),

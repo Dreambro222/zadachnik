@@ -1,9 +1,24 @@
-# Identity that gets pasted into contact forms.
-# Override individual fields here; falls back to .env values.
-name: "Your Name"
-company: "Your Company OU"
-email: "you@example.com"
-phone: "+372 5000 0000"
-website: "https://example.com"
-country: "Estonia"
-role: "Partnerships"
+# Identity that gets pasted into contact-form messages and the POPIA footer.
+# Override individual fields here; falls back to .env values where empty.
+#
+# IMPORTANT: do not leave placeholder values in production — POPIA s.69
+# requires real, working sender identification + opt-out. A fake address or a
+# no-reply email will trigger compliance issues.
+#
+# Recommended setup for a Russian-speaking importer per the brief:
+#   - Use a Dubai DMCC address rather than a Moscow address — eases sanctions
+#     friction with JSE-listed and B-BBEE-sensitive SA counterparties.
+#   - Use a working +971 (UAE) or +27 (SA-resident partner) phone, not +7.
+#   - Use a dedicated outreach domain (not the main corporate domain).
+
+name:    "Your Name"
+role:    "Director, Partnerships SADC"
+company: "Your Trading FZE"
+email:   "you@your-outreach-domain.com"
+phone:   "+971 4 000 0000"
+website: "https://your-outreach-domain.com"
+address: "Unit 0000, JLT Cluster X, DMCC, Dubai, United Arab Emirates"
+country: "United Arab Emirates"
+
+# What we sell — the analyzer / personalizer reference this loosely.
+product_short: "wholesale RHD Chinese-make passenger and commercial vehicles, lots of 100-300 units"
