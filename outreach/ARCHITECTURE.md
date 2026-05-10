@@ -69,6 +69,7 @@ outreach/
 │   ├── inbox.py                   # IMAP poller, attach to lead, classify
 │   ├── playbook.py                # markdown export of per-lead playbooks
 │   ├── reporter.py                # CSV report export
+│   ├── scheduler.py               # cadence state machine + due-list (autopilot)
 │   └── prompts/                   # system prompts (markdown, version-controlled)
 │       ├── deep_research.md       # input shape + JSON schema for research
 │       ├── plan_conversation.md   # input shape + JSON schema for playbook
@@ -210,7 +211,8 @@ fallback for `sender.yaml: name`).
 | `playbook <id> [--show]`             | Render ONE lead → `playbooks/leadNN-<slug>.md`         | `leads`, `messages`                      | playbooks/                              |
 | `playbooks`                          | Render every lead → one combined md                    | `leads`, `messages`                      | playbooks/                              |
 | `approve [--id|--all|--batch N]`     | Move analyzed → approved (human gate)                  | `leads`                                  | `leads.status`                          |
-| `mail [--id|--step|--limit|--live]`  | Send the chosen step via SMTP                          | `leads.conversation`, mailer cfg         | `messages` (outbound), `leads.status`, `leads.current_step` |
+| `mail [--id|--step|--limit|--due|--live]` | Send a step via SMTP. `--due` picks all due leads + auto-picks each one's next step | `leads.conversation`, `leads.next_action_at`, mailer cfg | `messages` (outbound), `leads.status`, `leads.current_step`, `leads.next_action_at` |
+| `due [--limit]`                      | List leads where `next_action_at <= now`               | `leads`                                  | stdout                                  |
 | `send [--id|--limit|--live]`         | Submit contact form via Playwright                     | `leads.conversation`, sender             | `attempts`, `messages` (outbound), `leads.status` |
 | `inbox [--once/--watch]`             | Poll IMAP, attach replies, classify each               | imap server, `messages`, `inbox_state`   | `messages` (inbound), `leads.status`, `inbox_state` |
 | `reply <id>`                         | Manual fallback: paste an inbound, classify it         | stdin / file                             | `messages` (inbound)                    |
@@ -256,19 +258,32 @@ submit / send.
                        └──────────┘
 ```
 
-**`current_step` field** holds the per-lead position in the conversation:
+**`current_step` field** holds the LAST COMPLETED step (settled convention,
+no `_sent` suffix — see AUDIT M1 fix):
 
 | value                     | meaning                                          | set by                |
 |---------------------------|--------------------------------------------------|-----------------------|
-| `first_touch`             | playbook ready, first_touch not yet sent         | `plan`                |
-| `first_touch_sent`        | first_touch shipped, awaiting reply / followup_1 | `mail` / `send`       |
-| `followup_1_sent`         | followup_1 shipped                               | `mail`                |
-| `followup_2_sent`         | followup_2 shipped                               | `mail`                |
-| `nurture_30d_sent`        | nurture_30d shipped                              | `mail`                |
-| `close_sent`              | close template shipped                           | `mail`                |
-| `objection_<key>_sent`    | objection-handler reply shipped                  | `mail`                |
+| `NULL`                    | playbook ready, nothing sent yet                 | `plan`                |
+| `first_touch`             | first_touch shipped, awaiting reply / followup_1 | `mail` / `send`       |
+| `followup_1`              | followup_1 shipped                               | `mail`                |
+| `followup_2`              | followup_2 shipped                               | `mail`                |
+| `nurture_30d`             | nurture_30d shipped — terminal cadence step      | `mail`                |
+| `close`                   | close template shipped                           | `mail`                |
+| `objection_<key>`         | objection-handler reply shipped (off-sequence)   | `mail`                |
 
-(See AUDIT for the inconsistency between `_sent`-suffixed and bare values.)
+The mapping `current_step → next_step → next_action_at` is encoded in
+`scheduler.py`:
+
+- `NULL` → next is `first_touch`, but **first_touch is never auto-scheduled**
+  (it's gated behind manual `approve` + `mail --id N --live`).
+- `first_touch` → `followup_1`, due at `first_touch_sent_at + 5 days`.
+- `followup_1` → `followup_2`, due at `first_touch_sent_at + 10 days`.
+- `followup_2` → `nurture_30d`, due at `first_touch_sent_at + 30 days`.
+- `nurture_30d` / `close` / `objection_*` → terminal, `next_action_at = NULL`.
+
+When an inbound reply lands, `inbox.ingest` (and the manual `reply` command)
+sets `status='replied'` and `next_action_at=NULL` so the operator owns the
+next move.
 
 ---
 
@@ -356,8 +371,9 @@ documented but **not enforced** anywhere (see AUDIT).
 | `test_playbook.py`   | markdown rendering of research + plan + history            | no       |
 | `test_mailer.py`     | envelope build, threading headers, dry-run, factory inject | no       |
 | `test_inbox.py`      | IMAP attach by In-Reply-To, classify hook, cursor advance  | no       |
+| `test_scheduler.py`  | state machine (next_cadence_step), next_action_at math, due-list selection | no       |
 
-Run: `pytest tests/`. All 11 tests are pure-Python with stdlib mocks (smtplib
+Run: `pytest tests/`. All 27 tests are pure-Python with stdlib mocks (smtplib
 + imaplib) — no live SMTP/IMAP, no Playwright, no Claude.
 
 ---

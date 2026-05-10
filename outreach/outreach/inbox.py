@@ -290,6 +290,7 @@ def ingest(
                     db.update_lead(
                         conn, lead["id"],
                         status="replied",
+                        next_action_at=None,   # operator owns the next move
                         last_error=None,
                     )
                     classified += 1

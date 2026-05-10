@@ -79,6 +79,10 @@ python -m outreach mail --id 1 --step close --live       # close template
 python -m outreach send                         # dry-run, prints fill plan
 python -m outreach send --id 1 --live           # actually submits the form
 
+# ---- AUTO follow-up cadence ----
+python -m outreach due                          # what's due today?
+python -m outreach mail --due --live            # ship every due step in one batch
+
 # ---- INBOUND replies via IMAP ----
 python -m outreach inbox --once                 # one poll
 python -m outreach inbox --watch                # long-running poll loop
@@ -282,15 +286,38 @@ Four suites (no LLM, no network — 11 tests):
 - For lower latency, `--watch` opens a long-running loop (uses
   `IMAP_POLL_SECONDS`).
 
+## Auto-scheduler — operating notes
+
+After every successful `mail --live` / `send --live`, the toolkit writes
+`leads.next_action_at` based on the playbook's cadence (Day +5 / +10 / +30
+from the original first_touch). To run on autopilot:
+
+```cron
+# Poll inbox every 5 minutes
+*/5 * * * *  cd ~/outreach && .venv/bin/python -m outreach inbox --once
+
+# Daily at 09:00 UTC: ship every due cadence step
+0 9 * * *    cd ~/outreach && .venv/bin/python -m outreach mail --due --live
+```
+
+`mail --due` auto-picks each lead's next cadence step (`first_touch_sent` →
+`followup_1`, etc.), respects `MAIL_DAILY_LIMIT`, and clears
+`next_action_at` on the lead once the cadence reaches `nurture_30d`. When
+an inbound reply arrives, the inbox poller (or manual `reply`) sets
+`status='replied'` and clears `next_action_at` so the operator owns the
+next move on that thread.
+
+`outreach due` shows the dashboard: who's overdue and what step would go
+out next.
+
 ## What is NOT done yet
 
 - LinkedIn outreach via Heyreach / Phantombuster / Expandi API.
 - Tender-watch agent for the 24 `tender_only` leads (etenders.gov.za + Coupa
   + Ariba notifications + Claude classifier).
 - Hunter / Apollo email-pattern verification batch.
-- Auto-scheduling of follow-ups (today the operator runs `mail --step
-  followup_1` manually — the `next_action_at` field is wired but no
-  scheduler reads it yet).
 - Bounce / NDR detection (today bounce-backs are classified as `unclear`
   and flagged for human review).
 - Per-priority filtering on `report` and `status`.
+- HIGH-priority issues from [`AUDIT.md`](AUDIT.md): H1 (reporter reads dead
+  column), H2 (reporter ignores email channel), H3 (importer has no dedup).

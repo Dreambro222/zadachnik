@@ -61,7 +61,15 @@ UNIQUE constraint on `company` / `website`, no upsert. Running
 
 ## MEDIUM
 
-### M1. `current_step` semantics are inconsistent
+### M1. `current_step` semantics are inconsistent — ✅ **FIXED 2026-05-10**
+
+Resolution: settled on "store the LAST COMPLETED step, no `_sent` suffix".
+- `plan` now sets `current_step = NULL` (nothing sent yet).
+- `mail` and `send` set `current_step = step` after a successful send.
+- `scheduler.next_cadence_step()` reads this column to decide what's next.
+
+**Original finding kept below for history:**
+
 
 **Where:** three writers:
 
@@ -86,7 +94,17 @@ matches `messages.step` directly:
   `conversation.py` (or `mailer.py`):
   `NULL → first_touch → followup_1 → followup_2 → nurture_30d → close`.
 
-### M2. `next_action_at` is never written
+### M2. `next_action_at` is never written — ✅ **FIXED 2026-05-10**
+
+Resolution: `outreach/scheduler.py` ships with `compute_next_action_at()`.
+After every successful `mail` / `send` step, we anchor on
+`first_touch_sent_at` and add the playbook's `day_offset` for the next
+cadence step. Terminal states (`nurture_30d`, `close`, `objection_*`,
+`replied`) clear `next_action_at = NULL`. New CLI: `outreach due` (lists
+overdue) + `mail --due --live` (ships them all in one batch).
+
+**Original finding kept below for history:**
+
 
 **Where:** `db.py:46` defines it; `README.md:279` documents it as "wired but
 no scheduler reads it yet". Stronger: **nothing writes it**. `grep -rn
@@ -107,7 +125,13 @@ next_action_at = ft_msg.created_at + timedelta(days=day_offset)
 
 For terminal states (`replied`, `nurture_30d_sent`, `close_sent`), set NULL.
 
-### M3. `reply` CLI updates the wrong message under concurrency
+### M3. `reply` CLI updates the wrong message under concurrency — ✅ **FIXED 2026-05-10**
+
+Resolution: `cli.reply_cmd` now uses the `inbound_id` returned by
+`db.record_message`, not `MAX(id)`.
+
+**Original finding kept below for history:**
+
 
 **Where:** `cli.py:291-296`.
 **What:** after `record_message` returns the new ID, the code re-finds it via

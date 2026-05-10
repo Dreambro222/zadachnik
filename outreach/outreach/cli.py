@@ -33,7 +33,7 @@ from rich.table import Table
 
 from . import (
     config, conversation, db, form_filler, importer, inbox as inbox_mod,
-    mailer, playbook, reporter, research,
+    mailer, playbook, reporter, research, scheduler,
 )
 
 app = typer.Typer(add_completion=False, help="Automated lead outreach")
@@ -201,7 +201,7 @@ def plan(
                     status="analyzed",   # ready for approve / send
                     conversation=json.dumps(result, ensure_ascii=False),
                     offer_text=ft.get("body"),
-                    current_step="first_touch",
+                    current_step=None,    # nothing sent yet — see scheduler.py
                     last_error=None,
                 )
             conn.commit()
@@ -272,7 +272,7 @@ def reply_cmd(
 
         history = [dict(m) for m in db.message_history(conn, lead_id)]
 
-        db.record_message(
+        inbound_id = db.record_message(
             conn, lead_id,
             direction="inbound",
             channel="email",
@@ -287,13 +287,13 @@ def reply_cmd(
             {"subject": subject, "body": body, "from": sender_email},
         )
 
-        # Update the inbound message with the classification.
+        # AUDIT M3 fix: use the rowid we just got back, not MAX(id).
         conn.execute(
-            """UPDATE messages SET classification = ?, confidence = ?
-               WHERE lead_id = ? AND id = (SELECT MAX(id) FROM messages WHERE lead_id = ?)""",
-            (verdict.get("classification"), verdict.get("confidence"),
-             lead_id, lead_id),
+            "UPDATE messages SET classification = ?, confidence = ? WHERE id = ?",
+            (verdict.get("classification"), verdict.get("confidence"), inbound_id),
         )
+        # Reply landed → operator owns the next move; clear the schedule.
+        db.update_lead(conn, lead_id, status="replied", next_action_at=None)
         conn.commit()
 
     console.rule(f"[bold]#{lead_id} {lead['company']}: reply classification")
@@ -450,8 +450,17 @@ def send(
                     subject=subject, body=message,
                 )
                 console.print(f"[green]sent[/green] — {outcome.confirmation or 'OK'}")
-                db.update_lead(conn, lead["id"], status="sent", last_error=None,
-                               current_step="first_touch_sent")
+                ft_at = scheduler.first_touch_sent_at(conn, lead["id"])
+                next_due = scheduler.compute_next_action_at(
+                    plan_blob, "first_touch", ft_at
+                )
+                db.update_lead(
+                    conn, lead["id"],
+                    status="sent",
+                    last_error=None,
+                    current_step="first_touch",
+                    next_action_at=next_due,
+                )
             elif outcome.aborted:
                 console.print(f"[yellow]aborted:[/yellow] {outcome.abort_reason}")
                 db.update_lead(conn, lead["id"], status="skipped",
@@ -496,24 +505,44 @@ def _step_message(plan: dict, step: str) -> tuple[str, str, str] | None:
 @app.command()
 def mail(
     only_id: Optional[int] = typer.Option(None, "--id"),
-    limit: int = typer.Option(0, help="Max leads to send to (0 = all approved with email)"),
+    limit: int = typer.Option(0, help="Max leads to send to (0 = all matching)"),
     step: str = typer.Option(
         "first_touch",
         help="Which step from the playbook to send: "
              "first_touch | followup_1 | followup_2 | nurture_30d | "
-             "close | objection_<key>",
+             "close | objection_<key>. Ignored when --due is set "
+             "(step is auto-picked per lead).",
+    ),
+    due: bool = typer.Option(
+        False, "--due",
+        help="Auto-pick due leads + auto-pick each one's next cadence step. "
+             "Use with --live to ship a batch of follow-ups.",
     ),
     live: bool = typer.Option(False, "--live", help="Actually send (default: dry-run)"),
 ) -> None:
-    """Send the chosen playbook step via EMAIL (SMTP) to approved leads."""
+    """Send a playbook step via EMAIL (SMTP).
+
+    Two modes:
+      • per-step (default): pick `--step X` and ship it to every approved
+        lead with an email (or just `--id N`).
+      • `--due`: pick leads where `next_action_at <= now`, auto-compute each
+        one's next cadence step, ship them all in one batch.
+    """
     cfg = config.load_mailer()
 
     with db.session() as conn:
+        if due and only_id:
+            raise typer.BadParameter("--due and --id are mutually exclusive")
+
         if only_id:
             row = db.get_lead(conn, only_id)
             if not row:
                 raise typer.Exit("Lead not found")
             leads = [row]
+        elif due:
+            leads = scheduler.fetch_due(conn, limit=limit or None)
+            # Drop ones without an email — we can't mail them.
+            leads = [l for l in leads if (l["email"] or "").strip()]
         else:
             # All approved leads that have a usable email address.
             sql = """SELECT * FROM leads
@@ -544,21 +573,36 @@ def mail(
 
         sent = 0
         for lead in leads:
-            console.rule(f"#{lead['id']} {lead['company']}  [{step}]")
+            plan_blob = json.loads(lead["conversation"] or "{}")
+
+            # When --due, pick the next cadence step per-lead.
+            this_step = step
+            if due:
+                this_step = scheduler.next_cadence_step(plan_blob, lead["current_step"])
+                if not this_step:
+                    console.rule(f"#{lead['id']} {lead['company']}  [terminal]")
+                    console.print(
+                        f"[dim]no next step (current_step={lead['current_step']}) "
+                        "— clearing schedule[/dim]"
+                    )
+                    db.update_lead(conn, lead["id"], next_action_at=None)
+                    conn.commit()
+                    continue
+
+            console.rule(f"#{lead['id']} {lead['company']}  [{this_step}]")
             if not (lead["email"] or "").strip():
                 console.print("[yellow]no email — skipping[/yellow]")
                 continue
 
-            plan_blob = json.loads(lead["conversation"] or "{}")
-            chosen = _step_message(plan_blob, step)
+            chosen = _step_message(plan_blob, this_step)
             if not chosen:
                 console.print(
-                    f"[red]step `{step}` not in plan — run `plan` first[/red]"
+                    f"[red]step `{this_step}` not in plan — run `plan` first[/red]"
                 )
                 continue
             subject_raw, body, footer = chosen
             if not body:
-                console.print(f"[red]empty body for step `{step}`[/red]")
+                console.print(f"[red]empty body for step `{this_step}`[/red]")
                 continue
             try:
                 full_body = mailer.assemble_body(body, footer)
@@ -566,7 +610,7 @@ def mail(
                 console.print(f"[red]{exc}[/red]")
                 db.update_lead(
                     conn, lead["id"], status="failed",
-                    last_error=f"mail/{step}: {exc}",
+                    last_error=f"mail/{this_step}: {exc}",
                 )
                 conn.commit()
                 continue
@@ -575,7 +619,7 @@ def mail(
             in_reply_to = None
             references: list[str] = []
             thread_id = None
-            if step != "first_touch":
+            if this_step != "first_touch":
                 first = conn.execute(
                     """SELECT message_id, thread_id FROM messages
                        WHERE lead_id = ? AND direction = 'outbound'
@@ -589,7 +633,7 @@ def mail(
                     thread_id = first["thread_id"] or first["message_id"]
 
             subject = mailer.thread_subject(
-                subject_raw, is_followup=(step != "first_touch")
+                subject_raw, is_followup=(this_step != "first_touch")
             )
 
             outbound = mailer.OutboundMessage(
@@ -621,7 +665,7 @@ def mail(
 
             db.record_message(
                 conn, lead["id"],
-                direction="outbound", channel="email", step=step,
+                direction="outbound", channel="email", step=this_step,
                 subject=subject, body=full_body,
                 message_id=result.message_id,
                 in_reply_to=in_reply_to,
@@ -630,11 +674,16 @@ def mail(
                 to_addr=lead["email"],
                 raw=result.raw_envelope,
             )
-            new_status = "sent" if step == "first_touch" else lead["status"]
+            new_status = "sent" if this_step == "first_touch" else lead["status"]
+            ft_at = scheduler.first_touch_sent_at(conn, lead["id"])
+            next_due = scheduler.compute_next_action_at(
+                plan_blob, this_step, ft_at
+            )
             db.update_lead(
                 conn, lead["id"],
                 status=new_status,
-                current_step=f"{step}_sent",
+                current_step=this_step,
+                next_action_at=next_due,
                 last_error=None,
             )
             conn.commit()
@@ -642,12 +691,55 @@ def mail(
             console.print(
                 f"[green]sent[/green]  to={lead['email']}  "
                 f"msg-id={result.message_id}"
+                + (f"  next_due={next_due}" if next_due else "")
             )
             if cfg.delay_seconds and lead is not leads[-1]:
                 time.sleep(cfg.delay_seconds)
 
         console.print(f"\n[bold]Sent {sent} email(s)[/bold]" if live else
                       "\n[dim]dry-run finished[/dim]")
+
+
+@app.command("due")
+def due_cmd(
+    limit: int = typer.Option(0, help="Max rows to show (0 = all)"),
+) -> None:
+    """List leads whose next cadence step is due (next_action_at <= now)."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    with db.session() as conn:
+        rows = scheduler.fetch_due(conn, now=now, limit=limit or None)
+
+    if not rows:
+        console.print("[green]Nothing due. Inbox zero on the cadence.[/green]")
+        return
+
+    table = Table(title=f"Due cadence steps ({len(rows)})")
+    table.add_column("ID", justify="right")
+    table.add_column("Company")
+    table.add_column("Last step")
+    table.add_column("Next step")
+    table.add_column("Due (UTC)")
+    table.add_column("Overdue (d)", justify="right")
+    table.add_column("Email")
+    for row in rows:
+        plan_blob = json.loads(row["conversation"] or "{}")
+        nxt = scheduler.next_cadence_step(plan_blob, row["current_step"]) or "—"
+        overdue = scheduler.days_overdue(now, row["next_action_at"])
+        table.add_row(
+            str(row["id"]),
+            row["company"],
+            row["current_step"] or "—",
+            nxt,
+            row["next_action_at"],
+            f"{overdue:.1f}",
+            (row["email"] or "—")[:40],
+        )
+    console.print(table)
+    console.print(
+        "[dim]Run `outreach mail --due --live` to ship them all "
+        "(respects MAIL_DAILY_LIMIT).[/dim]"
+    )
 
 
 @app.command()
