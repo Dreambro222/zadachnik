@@ -2,7 +2,16 @@
 
 Python CLI that takes a CSV/XLSX of B2B leads (South African dealer groups,
 rental & fleet operators, taxi-recap financiers, used-car wholesalers, logistics
-truck buyers, bus operators) and runs each one through a full sales sequence:
+truck buyers, bus operators) and runs each one through a full sales sequence.
+
+> **Companion docs:**
+> - [`ARCHITECTURE.md`](ARCHITECTURE.md) — full structure: data flow, schema,
+>   file map, lifecycle states, LLM contracts. Source of truth for the shape
+>   of the system.
+> - [`AUDIT.md`](AUDIT.md) — known issues + recommended fixes (HIGH/MEDIUM/
+>   LOW + dead code + security). Read before deploying.
+
+---
 
 1. **Deep research** — Playwright pulls the homepage + about / leadership /
    press / news pages; Claude (with `WebSearch` + `WebFetch` enabled) digs up
@@ -136,11 +145,11 @@ outreach/
 ## Channel classification (importer)
 
 ```
-form_url present              → channel = form
-email present (no form_url)   → channel = email     (sending TBD)
-linkedin URL present          → channel = linkedin  (sending TBD)
-website only                  → channel = form (we discover the form)
-nothing                       → channel = none      (skipped)
+form_url present              → channel = form        (→ outreach send)
+email present (no form_url)   → channel = email       (→ outreach mail)
+linkedin URL present          → channel = linkedin    (sending: planned)
+website only                  → channel = form        (we discover the form)
+nothing                       → channel = none        (skipped)
 category in tender-only set   → channel = tender_only (skipped from cold)
 ```
 
@@ -222,11 +231,16 @@ Per `send --live` attempt:
 pytest tests/
 ```
 
-Two suites (no LLM, no network):
+Four suites (no LLM, no network — 11 tests):
 - `test_importer.py` — column auto-detection, channel classification, the
   73-row SA database stays intact + tier-A targets are form-eligible.
 - `test_playbook.py` — markdown rendering covers research + playbook +
   history; `export_lead` writes the file.
+- `test_mailer.py` — RFC822 envelope build, threading headers (Message-ID /
+  In-Reply-To / References), POPIA-footer enforcement, dry-run path,
+  `smtp_factory` injection.
+- `test_inbox.py` — IMAP attach by `In-Reply-To`, classifier hook, cursor
+  advancement, unattached-reply path; `imap_factory` stub for offline tests.
 
 ## Email channel — operating notes
 
