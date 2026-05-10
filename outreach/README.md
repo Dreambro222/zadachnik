@@ -25,12 +25,11 @@ truck buyers, bus operators) and runs each one through a full sales sequence:
 LLM calls go through the local `claude` CLI (`claude -p`). No API key needed
 if Claude Code is already authenticated.
 
-> **Status:** form channel + research + playbook + reply classifier are wired
-> end-to-end. Email and LinkedIn are stubbed (LinkedIn planned via Heyreach /
-> Phantombuster API; email via Gmail OAuth or SMTP). Government / mining /
-> corporate / industry-association leads are auto-classified as
-> `channel=tender_only` and skipped from cold outreach — those go through
-> CSD / Ariba / Coupa supplier portals separately.
+> **Status:** email channel + form channel + research + playbook + reply
+> classifier are wired end-to-end. LinkedIn is stubbed (planned via Heyreach
+> / Phantombuster API). Government / mining / corporate / industry-association
+> leads are auto-classified as `channel=tender_only` and skipped from cold
+> outreach — those go through CSD / Ariba / Coupa supplier portals separately.
 
 ## Quick start
 
@@ -60,10 +59,22 @@ python -m outreach playbook 1                   # writes + prints lead 1
 python -m outreach playbooks                    # one big file with all leads
 
 python -m outreach approve --id 1
+
+# ---- EMAIL channel (SMTP) ----
+python -m outreach mail --id 1                  # dry-run by default
+python -m outreach mail --id 1 --live           # actually sends first_touch
+python -m outreach mail --id 1 --step followup_1 --live  # threaded follow-up
+python -m outreach mail --id 1 --step close --live       # close template
+
+# ---- FORM channel (Playwright) ----
 python -m outreach send                         # dry-run, prints fill plan
 python -m outreach send --id 1 --live           # actually submits the form
 
-# When a reply lands in your inbox, classify it against the prepared playbook.
+# ---- INBOUND replies via IMAP ----
+python -m outreach inbox --once                 # one poll
+python -m outreach inbox --watch                # long-running poll loop
+
+# Manual fallback (paste a reply that came through some other channel):
 python -m outreach reply 1 --from "ceo@motus.co.za" --subject "Re: …"
 # (paste body, Ctrl-D)
 
@@ -99,9 +110,11 @@ outreach/
 │   ├── research.py              # Playwright fetch + LLM deep-research
 │   ├── conversation.py          # plan_conversation() + classify_reply()
 │   ├── form_filler.py           # Playwright form-fill with self-healing
+│   ├── mailer.py                # SMTP outbound with RFC822 threading
+│   ├── inbox.py                 # IMAP poll + reply attach + classify
 │   ├── playbook.py              # markdown export of per-lead playbooks
 │   ├── reporter.py              # CSV report export
-│   ├── config.py                # .env + sender.yaml + offer.md
+│   ├── config.py                # .env + sender.yaml + offer.md + mailer/inbox
 │   └── prompts/                 # system prompts (markdown)
 │       ├── deep_research.md
 │       ├── plan_conversation.md
@@ -215,12 +228,55 @@ Two suites (no LLM, no network):
 - `test_playbook.py` — markdown rendering covers research + playbook +
   history; `export_lead` writes the file.
 
+## Email channel — operating notes
+
+- Use a **dedicated outreach domain** (e.g. `outreach-yourbiz.com`), never
+  your main corporate domain. Set up SPF + DKIM + DMARC on it BEFORE the
+  first send — otherwise SA-corporate spam filters will burn the domain
+  reputation in 24 h.
+- For Google Workspace, generate an **app password** (Account → Security →
+  2-step verification → App passwords) and put it in `SMTP_PASSWORD` /
+  `IMAP_PASSWORD`. Don't use your main account password.
+- The mailer enforces `MAIL_DAILY_LIMIT` (default 20). Start at 10–15/day,
+  raise by +5/day after the first week, target 50/day after a month.
+- Threading is built on `Message-ID` / `In-Reply-To` / `References` headers.
+  `outreach mail --step followup_1` automatically chains to the original
+  `first_touch` Message-ID so the recipient sees one continuous thread.
+- The footer (POPIA s.69 — sender identity + opt-out) is enforced — the
+  mailer refuses to send without it.
+- For SCALE (>50 emails/day), swap SMTP for **Instantly.ai** or **Smartlead**
+  (proper cold-email infra with mailbox rotation + warm-up). The interface
+  in `mailer.py` is provider-agnostic — only the `_open_smtp` factory
+  changes.
+- Avoid Postmark / Mailgun / SendGrid for cold outreach — their TOS
+  explicitly bans it and they will suspend the account.
+
+## Inbox poller — operating notes
+
+- `outreach inbox --once` does a single poll: fetches new UIDs since the
+  last cursor, attaches each reply to a lead via `In-Reply-To` (or sender
+  email / domain as a fallback), runs `classify_reply`, stores the
+  classification + suggested next move on the inbound message.
+- The cursor (`uidvalidity`, `last_uid`) is stored in the `inbox_state`
+  table — replies are never reprocessed.
+- Recommended: run in a `cron` or `launchd` job every 5 minutes:
+
+  ```cron
+  */5 * * * *  cd ~/outreach && .venv/bin/python -m outreach inbox --once
+  ```
+
+- For lower latency, `--watch` opens a long-running loop (uses
+  `IMAP_POLL_SECONDS`).
+
 ## What is NOT done yet
 
-- Email sending (Gmail OAuth / SMTP / Postmark).
 - LinkedIn outreach via Heyreach / Phantombuster / Expandi API.
-- IMAP-based reply ingestion (today: paste manually into `outreach reply`).
 - Tender-watch agent for the 24 `tender_only` leads (etenders.gov.za + Coupa
   + Ariba notifications + Claude classifier).
 - Hunter / Apollo email-pattern verification batch.
+- Auto-scheduling of follow-ups (today the operator runs `mail --step
+  followup_1` manually — the `next_action_at` field is wired but no
+  scheduler reads it yet).
+- Bounce / NDR detection (today bounce-backs are classified as `unclear`
+  and flagged for human review).
 - Per-priority filtering on `report` and `status`.

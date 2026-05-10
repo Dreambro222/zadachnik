@@ -60,10 +60,25 @@ CREATE TABLE IF NOT EXISTS messages (
     classification TEXT,                  -- inbound only: interested | objection_<key> | not_now | no | auto_reply | unsubscribe | unclear
     confidence  REAL,                     -- 0..1
     raw         TEXT,                     -- raw payload (full email / form-thank-you snippet)
+    -- email-channel headers (null for form / linkedin)
+    message_id  TEXT,                     -- RFC822 Message-ID we set on outbound
+    in_reply_to TEXT,                     -- RFC822 In-Reply-To header
+    thread_id   TEXT,                     -- our internal stable thread identifier
+    from_addr   TEXT,
+    to_addr     TEXT,
     created_at  TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_lead ON messages(lead_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_messages_message_id ON messages(message_id);
+CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
+
+CREATE TABLE IF NOT EXISTS inbox_state (
+    folder        TEXT PRIMARY KEY,
+    uidvalidity   INTEGER,
+    last_uid      INTEGER NOT NULL DEFAULT 0,
+    updated_at    TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS attempts (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,12 +138,24 @@ _DEFERRED_LEAD_COLUMNS = [
     ("next_action_at", "TEXT"),
 ]
 
+_DEFERRED_MESSAGE_COLUMNS = [
+    ("message_id",  "TEXT"),
+    ("in_reply_to", "TEXT"),
+    ("thread_id",   "TEXT"),
+    ("from_addr",   "TEXT"),
+    ("to_addr",     "TEXT"),
+]
+
 
 def _migrate(conn: sqlite3.Connection) -> None:
-    existing = {row["name"] for row in conn.execute("PRAGMA table_info(leads)")}
+    lead_cols = {row["name"] for row in conn.execute("PRAGMA table_info(leads)")}
     for name, sql_type in _DEFERRED_LEAD_COLUMNS:
-        if name not in existing:
+        if name not in lead_cols:
             conn.execute(f"ALTER TABLE leads ADD COLUMN {name} {sql_type}")
+    msg_cols = {row["name"] for row in conn.execute("PRAGMA table_info(messages)")}
+    for name, sql_type in _DEFERRED_MESSAGE_COLUMNS:
+        if name not in msg_cols:
+            conn.execute(f"ALTER TABLE messages ADD COLUMN {name} {sql_type}")
 
 
 @contextmanager
@@ -257,15 +284,24 @@ def record_message(
     classification: str | None = None,
     confidence: float | None = None,
     raw: str | None = None,
+    message_id: str | None = None,
+    in_reply_to: str | None = None,
+    thread_id: str | None = None,
+    from_addr: str | None = None,
+    to_addr: str | None = None,
 ) -> int:
     cur = conn.execute(
         """
         INSERT INTO messages (lead_id, direction, channel, step, subject, body,
-                              classification, confidence, raw, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                              classification, confidence, raw,
+                              message_id, in_reply_to, thread_id,
+                              from_addr, to_addr, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (lead_id, direction, channel, step, subject, body,
-         classification, confidence, raw, now_iso()),
+         classification, confidence, raw,
+         message_id, in_reply_to, thread_id,
+         from_addr, to_addr, now_iso()),
     )
     return cur.lastrowid
 
@@ -277,6 +313,64 @@ def message_history(conn: sqlite3.Connection, lead_id: int) -> list[sqlite3.Row]
             (lead_id,),
         )
     )
+
+
+def find_message_by_id(
+    conn: sqlite3.Connection, message_id: str
+) -> sqlite3.Row | None:
+    return conn.execute(
+        "SELECT * FROM messages WHERE message_id = ? LIMIT 1",
+        (message_id,),
+    ).fetchone()
+
+
+# ---------- inbox cursor ----------
+
+def get_inbox_cursor(
+    conn: sqlite3.Connection, folder: str
+) -> tuple[int | None, int]:
+    row = conn.execute(
+        "SELECT uidvalidity, last_uid FROM inbox_state WHERE folder = ?",
+        (folder,),
+    ).fetchone()
+    if not row:
+        return None, 0
+    return row["uidvalidity"], row["last_uid"]
+
+
+def set_inbox_cursor(
+    conn: sqlite3.Connection,
+    folder: str,
+    uidvalidity: int,
+    last_uid: int,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO inbox_state (folder, uidvalidity, last_uid, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(folder) DO UPDATE SET
+            uidvalidity = excluded.uidvalidity,
+            last_uid    = excluded.last_uid,
+            updated_at  = excluded.updated_at
+        """,
+        (folder, uidvalidity, last_uid, now_iso()),
+    )
+
+
+def count_messages_today(
+    conn: sqlite3.Connection, *, channel: str, direction: str = "outbound"
+) -> int:
+    """Used to enforce MAIL_DAILY_LIMIT. UTC-day boundary."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    row = conn.execute(
+        """
+        SELECT COUNT(*) AS n FROM messages
+        WHERE direction = ? AND channel = ?
+          AND substr(created_at, 1, 10) = ?
+        """,
+        (direction, channel, today),
+    ).fetchone()
+    return row["n"] if row else 0
 
 
 def status_counts(conn: sqlite3.Connection) -> dict[str, int]:

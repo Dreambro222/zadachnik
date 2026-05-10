@@ -11,15 +11,18 @@ Pipeline:
     analyze [--limit N]        shorthand: research + plan in one go
     playbook <id>              export ONE lead's playbook to markdown
     playbooks                  export EVERY lead's playbook into one big file
-    approve / send             contact-form submission (dry-run by default)
-    reply <id>                 paste an inbound reply, get classification
-                               + suggested next move from the prepared plan
+    approve                    move a lead from analyzed → approved (gate)
+    mail [--id --step --live]  EMAIL channel: send the chosen step via SMTP
+    send [--id --live]         FORM channel: submit the contact form
+    inbox [--once]             poll IMAP, attach replies, classify
+    reply <id>                 paste an inbound reply (manual fallback)
     status / report            dashboard + CSV
 """
 from __future__ import annotations
 
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -28,7 +31,10 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.table import Table
 
-from . import config, conversation, db, form_filler, importer, playbook, reporter, research
+from . import (
+    config, conversation, db, form_filler, importer, inbox as inbox_mod,
+    mailer, playbook, reporter, research,
+)
 
 app = typer.Typer(add_completion=False, help="Automated lead outreach")
 console = Console()
@@ -455,6 +461,226 @@ def send(
                 db.update_lead(conn, lead["id"], status="failed",
                                last_error=outcome.error)
             conn.commit()
+
+
+# ---------- email channel ----------
+
+def _step_message(plan: dict, step: str) -> tuple[str, str, str] | None:
+    """Return (subject, body, footer) for the requested step from the plan,
+    or None if the step is not available. ``footer`` comes from first_touch
+    (POPIA s.69 footer is reused for every subsequent step)."""
+    if not plan:
+        return None
+    ft = plan.get("first_touch") or {}
+    footer = (ft.get("compliance_footer") or "").strip()
+    if step == "first_touch":
+        return ft.get("subject", ""), (ft.get("body") or "").strip(), footer
+    for f in plan.get("followups") or []:
+        if f.get("step_key") == step:
+            return f.get("subject", ""), (f.get("body") or "").strip(), footer
+    if step == "close":
+        cm = plan.get("close_message") or {}
+        return cm.get("subject", ""), (cm.get("body") or "").strip(), footer
+    if step.startswith("objection_"):
+        key = step[len("objection_"):]
+        for o in plan.get("objection_handlers") or []:
+            if o.get("objection_key") == key:
+                return (
+                    o.get("reply_subject", ""),
+                    (o.get("reply_body") or "").strip(),
+                    footer,
+                )
+    return None
+
+
+@app.command()
+def mail(
+    only_id: Optional[int] = typer.Option(None, "--id"),
+    limit: int = typer.Option(0, help="Max leads to send to (0 = all approved with email)"),
+    step: str = typer.Option(
+        "first_touch",
+        help="Which step from the playbook to send: "
+             "first_touch | followup_1 | followup_2 | nurture_30d | "
+             "close | objection_<key>",
+    ),
+    live: bool = typer.Option(False, "--live", help="Actually send (default: dry-run)"),
+) -> None:
+    """Send the chosen playbook step via EMAIL (SMTP) to approved leads."""
+    cfg = config.load_mailer()
+
+    with db.session() as conn:
+        if only_id:
+            row = db.get_lead(conn, only_id)
+            if not row:
+                raise typer.Exit("Lead not found")
+            leads = [row]
+        else:
+            # All approved leads that have a usable email address.
+            sql = """SELECT * FROM leads
+                     WHERE email IS NOT NULL AND email != ''
+                       AND status IN ('approved', 'sent', 'replied')
+                     ORDER BY id"""
+            leads = list(conn.execute(sql))
+            if limit:
+                leads = leads[:limit]
+
+        if not leads:
+            console.print(
+                "[yellow]No leads with an email address in approved/sent status.[/yellow]"
+            )
+            return
+
+        # Daily-limit gate (only counted in --live mode).
+        if live:
+            today_count = db.count_messages_today(conn, channel="email")
+            remaining = cfg.daily_limit - today_count
+            if remaining <= 0:
+                console.print(
+                    f"[red]Daily mail limit hit ({cfg.daily_limit}). "
+                    f"Try again tomorrow or raise MAIL_DAILY_LIMIT.[/red]"
+                )
+                return
+            leads = leads[:remaining]
+
+        sent = 0
+        for lead in leads:
+            console.rule(f"#{lead['id']} {lead['company']}  [{step}]")
+            if not (lead["email"] or "").strip():
+                console.print("[yellow]no email — skipping[/yellow]")
+                continue
+
+            plan_blob = json.loads(lead["conversation"] or "{}")
+            chosen = _step_message(plan_blob, step)
+            if not chosen:
+                console.print(
+                    f"[red]step `{step}` not in plan — run `plan` first[/red]"
+                )
+                continue
+            subject_raw, body, footer = chosen
+            if not body:
+                console.print(f"[red]empty body for step `{step}`[/red]")
+                continue
+            try:
+                full_body = mailer.assemble_body(body, footer)
+            except mailer.MailError as exc:
+                console.print(f"[red]{exc}[/red]")
+                db.update_lead(
+                    conn, lead["id"], status="failed",
+                    last_error=f"mail/{step}: {exc}",
+                )
+                conn.commit()
+                continue
+
+            # For non-first-touch steps we thread under the original outbound.
+            in_reply_to = None
+            references: list[str] = []
+            thread_id = None
+            if step != "first_touch":
+                first = conn.execute(
+                    """SELECT message_id, thread_id FROM messages
+                       WHERE lead_id = ? AND direction = 'outbound'
+                         AND step = 'first_touch' AND message_id IS NOT NULL
+                       ORDER BY id LIMIT 1""",
+                    (lead["id"],),
+                ).fetchone()
+                if first and first["message_id"]:
+                    in_reply_to = first["message_id"]
+                    references = [first["message_id"]]
+                    thread_id = first["thread_id"] or first["message_id"]
+
+            subject = mailer.thread_subject(
+                subject_raw, is_followup=(step != "first_touch")
+            )
+
+            outbound = mailer.OutboundMessage(
+                to_email=lead["email"],
+                to_name=lead["contact_name"] or lead["company"],
+                subject=subject,
+                body_plain=full_body,
+                in_reply_to=in_reply_to,
+                references=references,
+                reply_to=cfg.reply_to,
+            )
+
+            try:
+                result = mailer.send(outbound, cfg, dry_run=not live)
+            except Exception as exc:  # noqa: BLE001
+                console.print(f"[red]send failed:[/red] {exc}")
+                db.update_lead(conn, lead["id"], status="failed",
+                               last_error=str(exc)[:500])
+                conn.commit()
+                continue
+
+            if not live:
+                console.print(
+                    f"[cyan]dry-run[/cyan]  to={lead['email']}  "
+                    f"msg-id={result.message_id}\n"
+                    f"  subj=\"{subject}\""
+                )
+                continue
+
+            db.record_message(
+                conn, lead["id"],
+                direction="outbound", channel="email", step=step,
+                subject=subject, body=full_body,
+                message_id=result.message_id,
+                in_reply_to=in_reply_to,
+                thread_id=thread_id or result.message_id,
+                from_addr=cfg.from_email,
+                to_addr=lead["email"],
+                raw=result.raw_envelope,
+            )
+            new_status = "sent" if step == "first_touch" else lead["status"]
+            db.update_lead(
+                conn, lead["id"],
+                status=new_status,
+                current_step=f"{step}_sent",
+                last_error=None,
+            )
+            conn.commit()
+            sent += 1
+            console.print(
+                f"[green]sent[/green]  to={lead['email']}  "
+                f"msg-id={result.message_id}"
+            )
+            if cfg.delay_seconds and lead is not leads[-1]:
+                time.sleep(cfg.delay_seconds)
+
+        console.print(f"\n[bold]Sent {sent} email(s)[/bold]" if live else
+                      "\n[dim]dry-run finished[/dim]")
+
+
+@app.command()
+def inbox(
+    once: bool = typer.Option(True, "--once/--watch", help="One poll vs loop"),
+    no_classify: bool = typer.Option(False, help="Skip the LLM classifier"),
+) -> None:
+    """Poll the IMAP inbox, attach replies to leads, run classify_reply on each."""
+    cfg = config.load_inbox()
+
+    def _one_pass() -> None:
+        try:
+            summary = inbox_mod.ingest(inbox_cfg=cfg, classify=not no_classify)
+        except Exception as exc:  # noqa: BLE001
+            console.print(f"[red]inbox poll failed:[/red] {exc}")
+            return
+        console.print(
+            f"fetched={summary['fetched']}  attached={summary['attached']}  "
+            f"classified={summary['classified']}  "
+            f"unattached={len(summary['unattached'])}"
+        )
+        for u in summary["unattached"]:
+            console.print(f"  [dim]?  {u['from']}  \"{u['subject']}\"[/dim]")
+
+    if once:
+        _one_pass()
+        return
+
+    console.print(f"[dim]watching {cfg.host}/{cfg.folder} every {cfg.poll_seconds}s "
+                  f"(Ctrl-C to stop)[/dim]")
+    while True:
+        _one_pass()
+        time.sleep(cfg.poll_seconds)
 
 
 # ---------- dashboards ----------
