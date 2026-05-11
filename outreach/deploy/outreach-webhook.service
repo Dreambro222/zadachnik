@@ -1,0 +1,41 @@
+# systemd unit for the Smartlead webhook receiver.
+#
+# Install: deploy/bootstrap.sh symlinks this to /etc/systemd/system/.
+# Manage:  systemctl {start,stop,restart,status} outreach-webhook
+# Tail:    journalctl -u outreach-webhook -f
+
+[Unit]
+Description=Outreach Smartlead webhook receiver
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=${SERVICE_USER}
+Group=${SERVICE_USER}
+WorkingDirectory=${REPO_DIR}/outreach
+EnvironmentFile=${REPO_DIR}/outreach/.env
+ExecStart=${REPO_DIR}/.venv/bin/python -m outreach webhook --serve --host 127.0.0.1 --port 8080
+
+# Restart aggressively but back off if we're failing fast.
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=120
+StartLimitBurst=10
+
+# Hardening — webhook only reads from disk and writes to its own dir.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=${REPO_DIR}/outreach/data ${REPO_DIR}/outreach/screenshots
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# Capture stdout/stderr to journal.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
