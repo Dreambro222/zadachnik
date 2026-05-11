@@ -19,12 +19,14 @@ Two choices, both fast:
 
 | Pick | Cost | Ready in | Why pick it |
 |---|---|---|---|
-| **Primeforge Google Workspace × 3** ⭐ | $13.50/mo | 30 minutes | Your own brand domain, native Smartlead integration, fastest |
-| Smartlead native pre-warmed (Outlook × 3) | $13.50/mo + $18/yr | 24–48 h | Single vendor (everything in Smartlead UI), but generic domain |
-| Infraforge × 3 | $12/mo + dedicated IP | 5 minutes | Dedicated IPs (overkill for 74 leads) |
+| **Litemail (premium tier)** ⭐ | ~$15/mo (3 × $4.99) + domain $13/yr | **6–12 hours** | Real 4–12 wk warmup history, Postmaster `Good/High` guarantee in 48h, OAuth-Smartlead, US+EU dedicated IPs, full Google Admin access |
+| Primeforge Google Workspace × 3 | $13.50/mo | 30 minutes | Native Smartlead integration, fast, but warmup shorter |
+| Smartlead native pre-warmed | $13.50/mo + $18/yr | 24–48 h | Single vendor, but generic domain (you can't pick name) |
 
-**Recommended: Primeforge.** Rest of this runbook assumes that. The
-substitutions are obvious if you pick another.
+**Recommended: Litemail premium.** Most expensive of the three but the
+deliverability premium pays for itself on the first reply. The signup
+URL is direct-to-checkout:
+[https://app.litemail.ai/buyPlan?provider=google&type=pre_warm&plan=growth](https://app.litemail.ai/buyPlan?provider=google&type=pre_warm&plan=growth)
 
 ### B. Sending domain
 
@@ -62,27 +64,36 @@ Cloudflare is cheaper but requires using their DNS.
 
 ---
 
-## Stage 2 — Pre-warmed inboxes  (5 min order, 30 min wait)
+## Stage 2 — Pre-warmed inboxes  (5 min order, 6–12 h wait)
 
-### If Primeforge:
-1. Open https://www.primeforge.ai/
-2. Click **Get Started** → choose **Google Workspace mailboxes**.
-3. Quantity: **3 mailboxes**. Plan: monthly billing.
-4. Pick a domain in checkout (e.g. `tradehub-africa.com`).
-5. Pay (Stripe, accepts most cards).
-6. After payment Primeforge sends you 3 emails over the next 30 minutes
-   with credentials for each inbox.
-7. Inside Primeforge dashboard → **"Connect to Smartlead"** button →
-   one-click OAuth → your 3 inboxes appear in Smartlead → **Email
-   Accounts**.
+### Litemail premium (recommended path):
+1. Open the direct checkout URL:
+   **[app.litemail.ai/buyPlan?provider=google&type=pre_warm&plan=growth](https://app.litemail.ai/buyPlan?provider=google&type=pre_warm&plan=growth)**
+2. Quantity: **3 mailboxes**, plan: **pre-warmed** (NOT "fresh" — that
+   one's $2.50 but you'd be doing 14d warmup yourself).
+3. Choose **priority delivery** for the 6-hour SLA vs 12-hour standard
+   (~$5 extra one-time, worth it).
+4. Domain: pick **bring your own** if you already have one, or buy a new
+   `.com` in their checkout ($13/yr). Suggested names:
+   `tradehub-africa.com`, `sadc-trading.com`, `africa-wholesale.co`.
+5. Pay with Stripe (accepts most cards including Russian Mir-OFF cards
+   that route via international networks; if blocked, use a UAE/EU card).
+6. Within 6–12h Litemail sends 3 emails with admin credentials.
+7. Verify each inbox in Google Postmaster Tools is `Good` or `High`
+   reputation — Litemail's 48h guarantee covers re-issuing if not.
+8. In Litemail dashboard → **Connect → Smartlead** → OAuth one-click →
+   inboxes appear in Smartlead → **Email Accounts**.
 
-### If Smartlead native:
+### Alternative — Primeforge (faster, slightly less premium):
+1. Open https://www.primeforge.ai/ → **Get Started** → Google Workspace.
+2. 3 mailboxes monthly, pick a domain.
+3. Pay. 30 minutes later inboxes are live.
+4. "Connect to Smartlead" → OAuth.
+
+### Alternative — Smartlead native (one-stop shop, slower):
 1. In Smartlead dashboard → **Email Accounts → Add → "Buy Pre-Warmed
-   Mailboxes"**.
-2. Pick **Outlook** (cheapest, $3.99/mo) or **Google** ($9/mo).
-3. Quantity: **3**, billing: monthly.
-4. Pay.
-5. Inboxes appear in 24–48h — you'll get an email when ready.
+   Mailboxes"**. Pick **Outlook $3.99/mo × 3** OR **Google $9/mo × 3**.
+2. Pay. 24–48h.
 
 ✅ At this point you have 3 connected inboxes in Smartlead. Verify by
 running stage 4's smoke test.
@@ -383,9 +394,9 @@ Fix: in Smartlead UI, find the lead's `smartlead_lead_id`, and
 Stage 1:  https://app.smartlead.ai/signup
           → Settings → API Keys → Create → copy key → KEEP
 
-Stage 2:  https://www.primeforge.ai/
-          → 3 Google mailboxes + domain
-          → after 30 min: "Connect to Smartlead" button
+Stage 2:  https://app.litemail.ai/buyPlan?provider=google&type=pre_warm&plan=growth
+          → 3 Google mailboxes (pre-warmed plan, priority delivery)
+          → after 6-12h: "Connect to Smartlead" → OAuth
 
 Stage 3:  ssh root@<hetzner>
           DNS: A record outreach.<domain> → <hetzner-ip>
