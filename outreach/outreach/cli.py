@@ -33,7 +33,8 @@ from rich.table import Table
 
 from . import (
     config, conversation, db, form_filler, importer, inbox as inbox_mod,
-    mailer, playbook, reporter, research, scheduler,
+    mailer, playbook, reporter, research, scheduler, smartlead,
+    webhook as webhook_mod,
 )
 
 app = typer.Typer(add_completion=False, help="Automated lead outreach")
@@ -740,6 +741,195 @@ def due_cmd(
         "[dim]Run `outreach mail --due --live` to ship them all "
         "(respects MAIL_DAILY_LIMIT).[/dim]"
     )
+
+
+# ---------- Smartlead.ai thick-mode integration ----------
+
+@app.command("campaign-init")
+def campaign_init(
+    name: str = typer.Argument(..., help="Display name for the Smartlead campaign"),
+    webhook_url: str = typer.Option("", help="Public URL of our `webhook --serve` "
+                                            "endpoint, e.g. https://outreach.your.com"
+                                            "/webhook/smartlead"),
+    daily_limit: int = typer.Option(30, help="Max sends/day across all inboxes"),
+) -> None:
+    """Create a Smartlead campaign with our 4-step cadence sequence + webhooks.
+
+    Run ONCE per campaign. Writes the resulting campaign_id to stdout —
+    drop it into .env as SMARTLEAD_CAMPAIGN_ID and then use `outreach push`.
+    """
+    cfg = smartlead.load_smartlead()
+    sender = config.load_sender()
+    client = smartlead.SmartleadClient(cfg)
+
+    console.print(f"[dim]Creating campaign `{name}`...[/dim]")
+    result = client.create_campaign(name=name)
+    campaign_id = (
+        result.get("id") or result.get("campaign_id")
+        or (result.get("data") or {}).get("id")
+    )
+    if not campaign_id:
+        console.print(f"[red]Could not extract campaign_id from {result!r}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]campaign_id={campaign_id}[/green]")
+
+    console.print("[dim]Pushing sequence template (4 steps, days 0/5/10/30)...[/dim]")
+    template = smartlead.build_sequence_template(sender)
+    client.update_sequence(campaign_id, template)
+
+    console.print(f"[dim]Setting daily_limit={daily_limit}...[/dim]")
+    client.update_settings(
+        campaign_id,
+        daily_limit=daily_limit,
+        stop_lead_settings="REPLY_TO_AN_EMAIL",
+    )
+
+    if webhook_url:
+        console.print(f"[dim]Registering webhook → {webhook_url}[/dim]")
+        client.register_webhook(
+            campaign_id,
+            url=webhook_url,
+            event_types=[
+                "EMAIL_SENT", "EMAIL_REPLY", "EMAIL_BOUNCE",
+                "LEAD_UNSUBSCRIBED", "LEAD_CATEGORY_UPDATED",
+            ],
+            secret=cfg.webhook_secret,
+        )
+
+    console.print(
+        f"\n[bold green]Campaign ready.[/bold green]\n"
+        f"Add this to your .env:\n\n"
+        f"    SMARTLEAD_CAMPAIGN_ID={campaign_id}\n\n"
+        f"Then assign inboxes in the Smartlead UI (or via "
+        f"`client.assign_email_accounts`), and finally:\n"
+        f"    outreach push --priority HIGH\n"
+    )
+
+
+@app.command("push")
+def push_cmd(
+    only_id: Optional[int] = typer.Option(None, "--id"),
+    priority: Optional[str] = typer.Option(None, "--priority",
+                                            help="A | B | C — pick by priority"),
+    limit: int = typer.Option(0, help="Max leads to push (0 = all matching)"),
+    campaign_id: Optional[int] = typer.Option(None, "--campaign-id",
+                                              help="Override SMARTLEAD_CAMPAIGN_ID"),
+    dry_run: bool = typer.Option(False, "--dry-run",
+                                  help="Build payloads and print them, don't POST"),
+) -> None:
+    """Push approved leads + their per-lead personalisation to Smartlead.
+
+    Requires `outreach plan` to have run first (so leads.conversation is
+    populated). After push, Smartlead owns the cadence — sends, follow-ups,
+    inbox rotation and bounce handling. We listen via webhook.
+    """
+    cfg = smartlead.load_smartlead()
+    campaign_id = campaign_id or cfg.default_campaign_id
+    if not campaign_id:
+        raise typer.BadParameter(
+            "No campaign_id. Set SMARTLEAD_CAMPAIGN_ID in .env or pass --campaign-id."
+        )
+
+    with db.session() as conn:
+        if only_id:
+            row = db.get_lead(conn, only_id)
+            leads = [row] if row else []
+        else:
+            sql = """SELECT * FROM leads
+                     WHERE status IN ('analyzed', 'approved')
+                       AND conversation IS NOT NULL
+                       AND email IS NOT NULL AND email != ''
+                       AND smartlead_lead_id IS NULL"""
+            params: list = []
+            if priority:
+                sql += " AND priority = ?"
+                params.append(priority.upper())
+            sql += " ORDER BY id"
+            if limit:
+                sql += " LIMIT ?"
+                params.append(limit)
+            leads = list(conn.execute(sql, params))
+
+        if not leads:
+            console.print("[yellow]No leads to push. Run `plan` and `approve` first, "
+                          "or check --priority filter.[/yellow]")
+            return
+
+        payloads = []
+        for lead in leads:
+            try:
+                plan_blob = json.loads(lead["conversation"] or "{}")
+                payload = smartlead.build_lead_payload(dict(lead), plan_blob)
+                payloads.append((lead, payload))
+            except (KeyError, json.JSONDecodeError) as exc:
+                console.print(f"[red]#{lead['id']} {lead['company']}: skip — {exc}[/red]")
+
+        console.rule(f"Pushing {len(payloads)} lead(s) → campaign {campaign_id}")
+
+        if dry_run:
+            for lead, payload in payloads:
+                console.print(f"#{lead['id']} {lead['company']}  →  {payload['email']}")
+                console.print(f"  [dim]{json.dumps(payload, ensure_ascii=False)[:200]}…[/dim]")
+            console.print("[yellow]dry-run: nothing pushed.[/yellow]")
+            return
+
+        client = smartlead.SmartleadClient(cfg)
+        result = client.add_leads(campaign_id, [p for _, p in payloads])
+
+        # Smartlead returns either {"upload_count": N} or per-lead status.
+        # Per-lead IDs come back in `lead_create_response` / `created_leads`.
+        created = (
+            result.get("created_leads")
+            or result.get("lead_create_response")
+            or []
+        )
+        by_email = {
+            (item.get("email") or "").lower(): item.get("id") or item.get("lead_id")
+            for item in created if isinstance(item, dict)
+        }
+
+        for lead, payload in payloads:
+            smid = by_email.get(payload["email"].lower())
+            db.update_lead(
+                conn, lead["id"],
+                status="approved",
+                smartlead_lead_id=smid,
+                smartlead_campaign_id=campaign_id,
+                pushed_at=db.now_iso(),
+                last_error=None,
+            )
+
+        console.print(
+            f"[green]pushed {len(payloads)}[/green]  "
+            f"(Smartlead response: {json.dumps(result)[:200]})"
+        )
+
+
+@app.command("webhook")
+def webhook_cmd(
+    serve: bool = typer.Option(False, "--serve",
+                                help="Start the HTTP receiver (foreground)"),
+    host: str = typer.Option("0.0.0.0", help="Bind address"),
+    port: int = typer.Option(8080, help="Bind port"),
+) -> None:
+    """Run the Smartlead webhook receiver (foreground HTTP server)."""
+    if not serve:
+        console.print("Use `outreach webhook --serve` to start the receiver.")
+        raise typer.Exit(0)
+
+    import logging as _logging
+    _logging.basicConfig(level=_logging.INFO,
+                          format="%(asctime)s  %(levelname)s  %(message)s")
+
+    cfg = smartlead.load_smartlead()
+    db.init_db()    # idempotent; ensures schema migrated
+    console.print(
+        f"[bold]Smartlead webhook[/bold] on http://{host}:{port}"
+        f"/webhook/smartlead"
+        + ("  [dim](HMAC verification ON)[/dim]" if cfg.webhook_secret else "")
+    )
+    webhook_mod.serve(host=host, port=port, secret=cfg.webhook_secret)
 
 
 @app.command()

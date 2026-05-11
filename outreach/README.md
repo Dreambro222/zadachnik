@@ -79,13 +79,21 @@ python -m outreach mail --id 1 --step close --live       # close template
 python -m outreach send                         # dry-run, prints fill plan
 python -m outreach send --id 1 --live           # actually submits the form
 
-# ---- AUTO follow-up cadence ----
+# ---- AUTO follow-up cadence (legacy SMTP mode) ----
 python -m outreach due                          # what's due today?
 python -m outreach mail --due --live            # ship every due step in one batch
 
-# ---- INBOUND replies via IMAP ----
+# ---- INBOUND replies via IMAP (legacy mode) ----
 python -m outreach inbox --once                 # one poll
 python -m outreach inbox --watch                # long-running poll loop
+
+# ---- THICK MODE via Smartlead.ai (recommended for new domains) ----
+python -m outreach campaign-init "RHD Q3 2026" \
+    --webhook-url https://outreach.your.com/webhook/smartlead \
+    --daily-limit 30                             # one-off campaign setup
+python -m outreach push --priority A --dry-run   # preview payloads
+python -m outreach push --priority A             # ship leads to Smartlead
+python -m outreach webhook --serve --port 8080   # receive events (run on VPS)
 
 # Manual fallback (paste a reply that came through some other channel):
 python -m outreach reply 1 --from "ceo@motus.co.za" --subject "Re: …"
@@ -286,7 +294,48 @@ Four suites (no LLM, no network — 11 tests):
 - For lower latency, `--watch` opens a long-running loop (uses
   `IMAP_POLL_SECONDS`).
 
-## Auto-scheduler — operating notes
+## Two send modes — pick one
+
+The toolkit supports **two mutually-exclusive sending paths**. Pick the one
+that fits your situation:
+
+| | **Legacy SMTP mode** | **Thick mode (Smartlead.ai)** |
+|---|---|---|
+| Who sends | `outreach mail --live` over SMTP from your own mailbox | Smartlead.ai through its rotating inbox pool |
+| Cadence engine | our `scheduler.py` + `next_action_at` + `mail --due` cron | Smartlead's built-in sequence editor |
+| Domain warmup | you, manually, 2–4 weeks | Smartlead's "warmup pool" — automatic |
+| Inbox rotation | none (single mailbox) | yes, across N mailboxes you assign |
+| Bounce handling | you (TODO — currently classified as `unclear`) | automatic |
+| Inbound replies | `outreach inbox --watch` (IMAP poll) | `outreach webhook --serve` (push from Smartlead) |
+| Cost | $0 / month | ~$60–100 / mo (Smartlead $39 + 5 Maildoso inboxes $20) |
+| Setup time | 2–4 weeks (domain warmup) | ~1 day after Maildoso provisions inboxes |
+| Best for | low volume, established sender | new domain, 50+ leads/day, no time to warm up |
+
+For thick-mode operator runbook see [`docs/SMARTLEAD.md`](docs/SMARTLEAD.md)
+(coming soon). Quickstart:
+
+```bash
+# 1. Add SMARTLEAD_API_KEY to .env (from Smartlead → Settings → API).
+# 2. Provision N inboxes (Maildoso recommended) and connect them in
+#    Smartlead → Email Accounts.
+# 3. Create campaign + push our 4-step cadence template + register webhook:
+outreach campaign-init "RHD Q3 2026" \
+    --webhook-url https://outreach.your.com/webhook/smartlead \
+    --daily-limit 30
+# 4. Copy the printed campaign_id into .env as SMARTLEAD_CAMPAIGN_ID.
+# 5. Run the receiver on your VPS (behind nginx + TLS):
+outreach webhook --serve --port 8080
+# 6. Push leads:
+outreach push --priority A --dry-run    # preview
+outreach push --priority A              # for real
+```
+
+Smartlead does sending, threading, follow-ups (Day +0/+5/+10/+30) and
+warmup. We do per-lead Claude personalisation and reply classification
+(over the inbound webhook). Both paths write to the same `messages` /
+`leads` tables — `outreach status` and `report` work for either.
+
+## Auto-scheduler — operating notes (legacy SMTP mode only)
 
 After every successful `mail --live` / `send --live`, the toolkit writes
 `leads.next_action_at` based on the playbook's cadence (Day +5 / +10 / +30

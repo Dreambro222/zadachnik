@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS leads (
     current_step    TEXT,                 -- 'first_touch' | 'followup_1' | 'discovery' | 'closed' | …
     next_action_at  TEXT,                 -- ISO timestamp for when the next touch is due
 
+    -- Smartlead.ai thick-mode integration (see smartlead.py, webhook.py)
+    smartlead_lead_id     INTEGER,        -- their lead PK; we get it back on push
+    smartlead_campaign_id INTEGER,        -- which Smartlead campaign owns this lead
+    pushed_at             TEXT,           -- ISO when we pushed to Smartlead
+
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
@@ -66,6 +71,9 @@ CREATE TABLE IF NOT EXISTS messages (
     thread_id   TEXT,                     -- our internal stable thread identifier
     from_addr   TEXT,
     to_addr     TEXT,
+    -- Smartlead webhook idempotency: their `event_timestamp` + lead_id + step
+    -- is unique per event. We cache it so re-deliveries don't double-insert.
+    smartlead_event_id TEXT,
     created_at  TEXT NOT NULL
 );
 
@@ -106,6 +114,16 @@ CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
 CREATE INDEX IF NOT EXISTS idx_attempts_lead ON attempts(lead_id);
 """
 
+# Idempotency + reverse-lookup indexes added in the smartlead migration.
+# We can't put these inside the main SCHEMA because the columns are added
+# via _migrate(); CREATE INDEX needs to run AFTER.
+_SMARTLEAD_INDEX_SQL = [
+    "CREATE INDEX IF NOT EXISTS idx_leads_smartlead "
+    "ON leads(smartlead_lead_id)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_smartlead_event "
+    "ON messages(smartlead_event_id) WHERE smartlead_event_id IS NOT NULL",
+]
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -132,18 +150,22 @@ def init_db(db_path: Path | None = None) -> Path:
 # Columns added after the first release. ALTER TABLE ADD COLUMN is idempotent
 # only via try/except in SQLite, so we list them explicitly.
 _DEFERRED_LEAD_COLUMNS = [
-    ("research",       "TEXT"),
-    ("conversation",   "TEXT"),
-    ("current_step",   "TEXT"),
-    ("next_action_at", "TEXT"),
+    ("research",              "TEXT"),
+    ("conversation",          "TEXT"),
+    ("current_step",          "TEXT"),
+    ("next_action_at",        "TEXT"),
+    ("smartlead_lead_id",     "INTEGER"),
+    ("smartlead_campaign_id", "INTEGER"),
+    ("pushed_at",             "TEXT"),
 ]
 
 _DEFERRED_MESSAGE_COLUMNS = [
-    ("message_id",  "TEXT"),
-    ("in_reply_to", "TEXT"),
-    ("thread_id",   "TEXT"),
-    ("from_addr",   "TEXT"),
-    ("to_addr",     "TEXT"),
+    ("message_id",         "TEXT"),
+    ("in_reply_to",        "TEXT"),
+    ("thread_id",          "TEXT"),
+    ("from_addr",          "TEXT"),
+    ("to_addr",            "TEXT"),
+    ("smartlead_event_id", "TEXT"),
 ]
 
 
@@ -156,6 +178,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     for name, sql_type in _DEFERRED_MESSAGE_COLUMNS:
         if name not in msg_cols:
             conn.execute(f"ALTER TABLE messages ADD COLUMN {name} {sql_type}")
+    for sql in _SMARTLEAD_INDEX_SQL:
+        conn.execute(sql)
 
 
 @contextmanager
@@ -289,19 +313,20 @@ def record_message(
     thread_id: str | None = None,
     from_addr: str | None = None,
     to_addr: str | None = None,
+    smartlead_event_id: str | None = None,
 ) -> int:
     cur = conn.execute(
         """
         INSERT INTO messages (lead_id, direction, channel, step, subject, body,
                               classification, confidence, raw,
                               message_id, in_reply_to, thread_id,
-                              from_addr, to_addr, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                              from_addr, to_addr, smartlead_event_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (lead_id, direction, channel, step, subject, body,
          classification, confidence, raw,
          message_id, in_reply_to, thread_id,
-         from_addr, to_addr, now_iso()),
+         from_addr, to_addr, smartlead_event_id, now_iso()),
     )
     return cur.lastrowid
 
@@ -321,6 +346,36 @@ def find_message_by_id(
     return conn.execute(
         "SELECT * FROM messages WHERE message_id = ? LIMIT 1",
         (message_id,),
+    ).fetchone()
+
+
+def find_lead_by_smartlead_id(
+    conn: sqlite3.Connection, smartlead_lead_id: int
+) -> sqlite3.Row | None:
+    return conn.execute(
+        "SELECT * FROM leads WHERE smartlead_lead_id = ? LIMIT 1",
+        (smartlead_lead_id,),
+    ).fetchone()
+
+
+def find_lead_by_email(
+    conn: sqlite3.Connection, email: str
+) -> sqlite3.Row | None:
+    """Fallback for webhooks that don't echo our lead_id back. Email is
+    not strictly unique in our schema, but Smartlead campaigns dedupe by
+    email so for any single campaign this returns at most one row."""
+    return conn.execute(
+        "SELECT * FROM leads WHERE lower(email) = lower(?) LIMIT 1",
+        (email or "",),
+    ).fetchone()
+
+
+def find_message_by_event(
+    conn: sqlite3.Connection, smartlead_event_id: str
+) -> sqlite3.Row | None:
+    return conn.execute(
+        "SELECT * FROM messages WHERE smartlead_event_id = ? LIMIT 1",
+        (smartlead_event_id,),
     ).fetchone()
 
 

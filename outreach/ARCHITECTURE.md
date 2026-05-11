@@ -69,7 +69,9 @@ outreach/
 │   ├── inbox.py                   # IMAP poller, attach to lead, classify
 │   ├── playbook.py                # markdown export of per-lead playbooks
 │   ├── reporter.py                # CSV report export
-│   ├── scheduler.py               # cadence state machine + due-list (autopilot)
+│   ├── scheduler.py               # cadence state machine + due-list (legacy autopilot)
+│   ├── smartlead.py               # Smartlead.ai API client + payload builders (thick mode)
+│   ├── webhook.py                 # stdlib HTTP receiver for Smartlead events
 │   └── prompts/                   # system prompts (markdown, version-controlled)
 │       ├── deep_research.md       # input shape + JSON schema for research
 │       ├── plan_conversation.md   # input shape + JSON schema for playbook
@@ -213,6 +215,9 @@ fallback for `sender.yaml: name`).
 | `approve [--id|--all|--batch N]`     | Move analyzed → approved (human gate)                  | `leads`                                  | `leads.status`                          |
 | `mail [--id|--step|--limit|--due|--live]` | Send a step via SMTP. `--due` picks all due leads + auto-picks each one's next step | `leads.conversation`, `leads.next_action_at`, mailer cfg | `messages` (outbound), `leads.status`, `leads.current_step`, `leads.next_action_at` |
 | `due [--limit]`                      | List leads where `next_action_at <= now`               | `leads`                                  | stdout                                  |
+| `campaign-init "name" [--webhook-url --daily-limit]` | One-off: create Smartlead campaign + push sequence template + register webhook | `SMARTLEAD_API_KEY`, `sender.yaml` | Smartlead campaign (remote); prints campaign_id |
+| `push [--id|--priority|--limit|--campaign-id|--dry-run]` | Push approved+planned leads with per-lead custom fields to a Smartlead campaign | `leads.conversation`, `SMARTLEAD_*` | `leads.smartlead_lead_id`, `leads.smartlead_campaign_id`, `leads.pushed_at` |
+| `webhook --serve [--host --port]`    | Run the HTTP receiver for Smartlead events (foreground)| `SMARTLEAD_WEBHOOK_SECRET` (optional)    | `messages` (outbound/inbound), `leads.status`, `leads.current_step` |
 | `send [--id|--limit|--live]`         | Submit contact form via Playwright                     | `leads.conversation`, sender             | `attempts`, `messages` (outbound), `leads.status` |
 | `inbox [--once/--watch]`             | Poll IMAP, attach replies, classify each               | imap server, `messages`, `inbox_state`   | `messages` (inbound), `leads.status`, `inbox_state` |
 | `reply <id>`                         | Manual fallback: paste an inbound, classify it         | stdin / file                             | `messages` (inbound)                    |
@@ -372,9 +377,12 @@ documented but **not enforced** anywhere (see AUDIT).
 | `test_mailer.py`     | envelope build, threading headers, dry-run, factory inject | no       |
 | `test_inbox.py`      | IMAP attach by In-Reply-To, classify hook, cursor advance  | no       |
 | `test_scheduler.py`  | state machine (next_cadence_step), next_action_at math, due-list selection | no       |
+| `test_smartlead.py`  | payload builders (sequence template + per-lead vars), httpx mock for API client | no       |
+| `test_webhook.py`    | event dispatch (SENT/REPLY/BOUNCE/UNSUB), idempotency, HMAC signature | no       |
 
-Run: `pytest tests/`. All 27 tests are pure-Python with stdlib mocks (smtplib
-+ imaplib) — no live SMTP/IMAP, no Playwright, no Claude.
+Run: `pytest tests/`. All 54 tests are pure-Python with stdlib mocks
+(smtplib + imaplib + httpx MockTransport) — no live SMTP/IMAP, no
+Playwright, no Claude, no Smartlead account.
 
 ---
 
@@ -384,7 +392,134 @@ Run: `pytest tests/`. All 27 tests are pure-Python with stdlib mocks (smtplib
 - `claude` CLI — all LLM calls (no API key needed)
 - `pandas`, `pyyaml`, `python-dotenv`, `typer`, `rich` — utility
 - `smtplib` / `imaplib` — stdlib, no external broker
+- `httpx` — Smartlead REST calls
+- `http.server` — stdlib webhook receiver (no Flask/FastAPI)
 
 The toolkit is single-process, single-machine, single-user. There is no
 orchestrator, no queue, no daemon — every command runs to completion and
-exits. The IMAP poller's `--watch` is the only long-running mode.
+exits. Long-running modes: `inbox --watch` (legacy IMAP polling) and
+`webhook --serve` (Smartlead receiver).
+
+---
+
+## 13. Thick mode — Smartlead.ai integration
+
+Sending path the toolkit was extended with on 2026-05-11. The legacy SMTP
++ scheduler path still works; thick mode is opt-in via setting
+`SMARTLEAD_API_KEY` and `SMARTLEAD_CAMPAIGN_ID` in `.env`.
+
+### What Smartlead owns vs. what we own
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ WE OWN                              │  SMARTLEAD OWNS                │
+├─────────────────────────────────────┼────────────────────────────────┤
+│ CSV import + dedup                  │  sending infrastructure        │
+│ Claude research (per company)       │  inbox rotation (N mailboxes)  │
+│ Claude playbook generation          │  domain warmup pool            │
+│ Per-lead personalisation            │  cadence timing (day 0/5/10/30)│
+│ Reply classification (Claude)       │  threading (RFC 5322 In-Reply) │
+│ POPIA footer wording                │  bounce detection              │
+│ State of every lead (sqlite)        │  open/click tracking (we opt   │
+│                                     │  out — POPIA noise)            │
+└─────────────────────────────────────┴────────────────────────────────┘
+```
+
+### Wire diagram (one-time setup + run loop)
+
+```
+ONE-TIME SETUP                                         RUN LOOP
+─────────────                                         ────────
+
+outreach import data/leads.csv                        outreach push --priority A
+   │                                                       │
+   ▼                                                       ▼
+outreach research --priority A                       Smartlead.add_leads(campaign_id,
+   │                                                      [per-lead payloads])
+   ▼                                                       │
+outreach plan --priority A                                 ▼
+   │                                                  Smartlead enqueues
+   │                                                  Day 0 send / Day 5 / etc.
+   │                                                       │
+   ▼                                                       ▼ (Smartlead sends)
+outreach campaign-init "RHD Q3"                       ┌──────────────────────┐
+   --webhook-url https://..                           │ EMAIL_SENT webhook   │
+   --daily-limit 30                                   │   → record outbound  │
+   │                                                  │   → current_step=N   │
+   │  Smartlead.create_campaign()                     └──────────────────────┘
+   │  Smartlead.update_sequence(            ◄──────── ┌──────────────────────┐
+   │      [4 steps with                                │ EMAIL_REPLY webhook  │
+   │       {{body_first_touch}} etc.])                 │   → record inbound   │
+   │  Smartlead.update_settings(daily=30)             │   → classify (Claude)│
+   │  Smartlead.register_webhook(...)                 │   → status=replied   │
+   │                                                  │   → next_action=NULL │
+   ▼                                                  └──────────────────────┘
+campaign_id printed,                                  ┌──────────────────────┐
+written to .env                                       │ EMAIL_BOUNCE webhook │
+                                                      │   → status=failed    │
+outreach webhook --serve --port 8080                  └──────────────────────┘
+(runs on VPS, behind nginx + TLS)                     ┌──────────────────────┐
+                                                      │ LEAD_UNSUBSCRIBED    │
+                                                      │   → status=unsub.    │
+                                                      │   → do_form_outreach │
+                                                      │     = 0              │
+                                                      └──────────────────────┘
+```
+
+### Sequence template + per-lead variables
+
+We push the sequence template **once** to Smartlead (in `campaign-init`).
+It's authored around `{{var}}` placeholders rather than hard-coded copy:
+
+```
+Step 1 (Day +0):
+  Subject: {{subject_first_touch}}
+  Body:    {{body_first_touch}}
+           --
+           <sender block from sender.yaml>
+           {{compliance_footer}}
+
+Step 2 (Day +5):
+  Subject: (empty → Smartlead threads as Re:)
+  Body:    {{body_followup_1}}
+           --
+           <sender block>
+           {{compliance_footer}}
+
+Step 3 (Day +10): {{body_followup_2}}
+Step 4 (Day +30): {{body_nurture_30d}}
+```
+
+Per-lead variables (`subject_first_touch`, `body_first_touch`, …,
+`body_nurture_30d`, `compliance_footer`, `our_lead_id`) are pushed via
+`POST /campaigns/{id}/leads` from `outreach push`.
+
+Missing follow-ups in the playbook → empty variable → Smartlead skips
+the step. State machine semantics from `scheduler.py` still apply: the
+webhook receiver advances `leads.current_step` as each EMAIL_SENT event
+fires.
+
+### Idempotency
+
+`messages.smartlead_event_id` is a SHA-256 of
+`(event_type, campaign_id, lead_id, sequence_step, event_timestamp,
+message_id)`. A unique index drops re-deliveries; Smartlead does retry
+on 5xx, so this matters. Returning 200 on duplicate is intentional.
+
+### Identity mapping
+
+```
+leads.id              ←→  leads.smartlead_lead_id
+leads.email           ←→  Smartlead's lead-by-email lookup (fallback)
+messages.message_id   ←→  Smartlead's `message_id` field on EMAIL_SENT
+                          (used for inbox.py threading too)
+```
+
+### Security
+
+- HMAC verification (optional): set `SMARTLEAD_WEBHOOK_SECRET`, receiver
+  validates `X-Smartlead-Signature: sha256=<hex>` on every POST.
+- API key is sent as a `?api_key=` query param — Smartlead's design;
+  not log-friendly. `webhook.py` never logs request URLs, only paths.
+- TLS termination is OUT of scope: run `outreach webhook --serve` behind
+  nginx / caddy that does TLS. The receiver is plain HTTP on localhost.
