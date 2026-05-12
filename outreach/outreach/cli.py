@@ -34,7 +34,7 @@ from rich.table import Table
 from . import (
     config, conversation, db, form_filler, importer, inbox as inbox_mod,
     mailer, playbook, reporter, research, scheduler, smartlead,
-    webhook as webhook_mod,
+    sync as sync_mod, webhook as webhook_mod,
 )
 
 app = typer.Typer(add_completion=False, help="Automated lead outreach")
@@ -930,6 +930,63 @@ def webhook_cmd(
         + ("  [dim](HMAC verification ON)[/dim]" if cfg.webhook_secret else "")
     )
     webhook_mod.serve(host=host, port=port, secret=cfg.webhook_secret)
+
+
+@app.command("sync")
+def sync_cmd(
+    campaign_id: Optional[int] = typer.Option(
+        None, "--campaign-id",
+        help="Sync only this campaign (default: every campaign in the workspace)",
+    ),
+    watch: bool = typer.Option(
+        False, "--watch",
+        help="Loop forever, polling every --interval seconds",
+    ),
+    interval: int = typer.Option(
+        300, "--interval",
+        help="Seconds between polls when --watch is set (default 5 min)",
+    ),
+    no_classify: bool = typer.Option(
+        False, "--no-classify",
+        help="Skip the Claude reply classifier (faster, dumber)",
+    ),
+) -> None:
+    """Pull state from Smartlead → local DB. Laptop-local replacement for
+    `webhook --serve`. Use --watch for a long-running polling loop.
+
+    Records:
+      • EMAIL_SENT events    → outbound rows in `messages` + advances current_step
+      • EMAIL_REPLY events   → inbound rows + Claude classify + status='replied'
+      • EMAIL_BOUNCE / unsub → status flips on `leads`
+
+    Idempotent via `smartlead_event_id` (same scheme as webhook.py).
+    """
+    cfg = smartlead.load_smartlead()
+    campaign_ids = [campaign_id] if campaign_id else None
+
+    import logging as _logging
+    _logging.basicConfig(level=_logging.INFO,
+                          format="%(asctime)s  %(levelname)s  %(message)s")
+
+    client = smartlead.SmartleadClient(cfg)
+
+    if watch:
+        sync_mod.watch(
+            client,
+            interval_seconds=interval,
+            campaign_ids=campaign_ids,
+            classify=not no_classify,
+        )
+        return
+
+    stats = sync_mod.sync_once(
+        client,
+        campaign_ids=campaign_ids,
+        classify=not no_classify,
+    )
+    console.print(stats.as_oneline())
+    for err in stats.errors:
+        console.print(f"[red]error:[/red] {err}")
 
 
 @app.command()

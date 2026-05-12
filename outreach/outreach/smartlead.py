@@ -208,6 +208,50 @@ class SmartleadClient:
             "GET", f"/campaigns/{campaign_id}/leads/{lead_id}",
         )
 
+    # ----- polling endpoints (laptop-local mode, replaces webhook) -----
+
+    def list_leads(
+        self,
+        campaign_id: int,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Paginated list of leads in a campaign — used by `outreach sync` to
+        pull current per-lead state when running without a webhook receiver."""
+        resp = self._request(
+            "GET", f"/campaigns/{campaign_id}/leads",
+            params={"offset": offset, "limit": limit},
+        )
+        if isinstance(resp, dict):
+            return resp.get("data") or resp.get("leads") or []
+        return resp or []
+
+    def lead_message_history(
+        self, campaign_id: int, lead_id: int
+    ) -> list[dict[str, Any]]:
+        """Every message Smartlead has on record for one lead (outbound +
+        inbound). Used to backfill messages our webhook would have written."""
+        resp = self._request(
+            "GET", f"/campaigns/{campaign_id}/leads/{lead_id}/message-history",
+        )
+        if isinstance(resp, dict):
+            return resp.get("history") or resp.get("messages") or []
+        return resp or []
+
+    def campaign_replies(
+        self, campaign_id: int, *, offset: int = 0, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        """Just the inbound replies for the campaign — Smartlead exposes this
+        as a dedicated endpoint that's cheaper than listing all leads."""
+        resp = self._request(
+            "GET", f"/campaigns/{campaign_id}/statistics-replies",
+            params={"offset": offset, "limit": limit},
+        )
+        if isinstance(resp, dict):
+            return resp.get("data") or resp.get("replies") or []
+        return resp or []
+
 
 # ---------- payload builders ----------
 

@@ -1,7 +1,14 @@
 # Setup runbook — from zero to first `outreach push --live`
 
-**Audience**: you (the operator), running through this once on your laptop +
-your Hetzner VPS, after deciding to use the **Smartlead.ai thick mode**.
+**Audience**: you (the operator), running through this once on your laptop.
+**Mode**: laptop-local + Smartlead.ai (NO server, NO webhook, NO certbot).
+
+> 💡 **Why laptop-local?**
+> Original plan used Hetzner + webhook receiver. For ≤200 leads/month
+> there's no point — polling Smartlead's REST API every 5 minutes from
+> your laptop (or any sandbox / GitHub Action) replaces the webhook with
+> minimal latency loss. See `outreach sync` below. If volume grows past
+> 200/month, ship the webhook receiver per the legacy `deploy/` artefacts.
 
 **Time budget**: 90 minutes of clicking + 24–48h of waiting for pre-warmed
 inboxes (or 30 minutes if you pick Primeforge).
@@ -100,57 +107,40 @@ running stage 4's smoke test.
 
 ---
 
-## Stage 3 — VPS bootstrap on Hetzner  (15 min)
+## Stage 3 — Laptop setup  (10 min, no server needed)
 
-You already have a Hetzner box. SSH in as root.
+On your laptop (macOS / Linux / WSL):
 
-### 3a. DNS first
-On your DNS provider (Cloudflare / Namecheap), add:
-```
-Type: A
-Name: outreach    (or whatever subdomain you want)
-Value: <your Hetzner public IP>
-TTL: 5 min
-```
-
-Wait 2 minutes, verify:
 ```bash
-dig +short outreach.yourdomain.io
-# should print your Hetzner IP
+# 1. Clone (or pull) the repo to a long-lived location.
+git clone https://github.com/dreambro222/zadachnik.git ~/zadachnik
+cd ~/zadachnik/outreach
+git checkout claude/automated-lead-outreach-mlZ8U
+
+# 2. Python venv + deps (Python 3.11+ required).
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 3. .env from template.
+cp .env.example .env
+# Edit .env in your editor — see Stage 4.
+
+# 4. Claude CLI (skip if already installed and logged in).
+which claude || npm install -g @anthropic-ai/claude-code
+claude --version    # should print a version
 ```
 
-### 3b. Run the bootstrap script
-On the Hetzner box:
-```bash
-curl -fsSL https://raw.githubusercontent.com/dreambro222/zadachnik/claude/automated-lead-outreach-mlZ8U/outreach/deploy/bootstrap.sh -o /tmp/bootstrap.sh
+### Why no server?
 
-# Substitute YOUR webhook domain:
-sudo DOMAIN=outreach.yourdomain.io \
-     REPO=https://github.com/dreambro222/zadachnik.git \
-     bash /tmp/bootstrap.sh
-```
+For our 74-lead volume, **polling** via `outreach sync` replaces the
+webhook server. It pulls Smartlead state every few minutes and writes
+to the same `messages` / `leads` tables that the webhook would have.
+Trade-off: ~5 min latency on reply ingestion vs ~real-time. Acceptable
+for B2B cold outreach where you'd never reply within 5 minutes anyway.
 
-What it does:
-- installs python 3.11, nginx, certbot, git
-- creates `outreach` system user
-- clones the repo to `/home/outreach/zadachnik`
-- creates `.venv`, pip installs
-- copies `.env.example` → `.env`, generates a fresh `SMARTLEAD_WEBHOOK_SECRET`
-- installs nginx config with TLS via Let's Encrypt
-- installs systemd unit `outreach-webhook`, starts it
-- opens firewall ports 22 / 80 / 443 (closes everything else)
-- prints next-steps summary
-
-Output should end with `✓ smoke test passed` and a public webhook URL.
-
-### 3c. Verify
-```bash
-curl https://outreach.yourdomain.io/health   # → "ok"
-systemctl status outreach-webhook            # → active (running)
-```
-
-✅ Public HTTPS endpoint listening at
-`https://outreach.yourdomain.io/webhook/smartlead`.
+The `deploy/` folder (bootstrap.sh, nginx, systemd) remains in the
+repo for when you scale past 200 leads/month. Until then, ignore it.
 
 ---
 
@@ -248,17 +238,11 @@ look good and skip the rest.
 
 ## Stage 7 — Push to Smartlead, dry-run first  (3 min)
 
-Get `leads.db` to the Hetzner box (so the webhook receiver can find
-each lead when Smartlead pings):
-```bash
-scp data/leads.db outreach@<hetzner>:/home/outreach/zadachnik/outreach/data/
-```
+All laptop-local now — no scp, no Hetzner.
 
-Then on Hetzner:
 ```bash
-sudo -u outreach -i
-cd /home/outreach/zadachnik/outreach
-source ../.venv/bin/activate
+cd ~/zadachnik/outreach
+source .venv/bin/activate
 
 # Dry-run: print payloads, don't POST.
 outreach push --priority A --limit 5 --dry-run
@@ -288,28 +272,47 @@ campaign's daily limit and inbox rotation.
 # On Hetzner — webhook events arriving:
 journalctl -u outreach-webhook -f
 
-# On your laptop or Hetzner — status overview:
+# On your laptop — status overview:
 outreach status
 
 # Detailed report:
 outreach report
 cat reports/outreach_report.csv
+
+# Pull fresh state from Smartlead into local DB (REPLACES the webhook):
+outreach sync                    # one pass — run after coffee, after lunch
+outreach sync --watch            # long-running loop, polls every 5 min
+outreach sync --interval 60      # poll every minute (uses more API calls)
+outreach sync --no-classify      # skip Claude classify for speed
 ```
+
+### Daily routine (laptop-local)
+
+```bash
+# Once a day — or pin a tab open with `sync --watch`:
+outreach sync --watch &
+# Then check what happened:
+outreach status
+```
+
+`sync` writes EMAIL_SENT / EMAIL_REPLY / EMAIL_BOUNCE / unsubscribe
+events into our local `messages` + `leads` tables — same schema the
+webhook would have used. Idempotent via `smartlead_event_id`, so
+re-running is free.
 
 ### Replies — operator action
 
-When `status='replied'` appears for a lead:
+When `status='replied'` appears (after `sync` ran):
 1. Read the conversation in Smartlead Master Inbox.
 2. Decide: send the playbook's `close_message`, send an objection
    handler, or just answer manually.
 3. Send your reply directly from Smartlead UI (it threads under the
    right Message-ID automatically).
-4. After reply: `outreach mail --id <N> --step close --live` IF you
-   want to send the close template through our pipeline. Or just keep
-   it in Smartlead — either works since the webhook syncs back.
+4. Next `sync` pass picks up your sent reply + the lead's response if
+   they came back.
 
-✅ You're running on autopilot. Replies pile up. Operator only intervenes
-on conversations.
+✅ You're running on autopilot. Replies pile up in Smartlead inbox.
+Operator only intervenes on conversations.
 
 ---
 

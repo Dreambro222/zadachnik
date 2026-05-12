@@ -1,24 +1,28 @@
-# Identity that gets pasted into contact-form messages and the POPIA footer.
-# Override individual fields here; falls back to .env values where empty.
+# Identity baked into every outreach email (signature + POPIA s.69 footer).
 #
-# IMPORTANT: do not leave placeholder values in production — POPIA s.69
-# requires real, working sender identification + opt-out. A fake address or a
-# no-reply email will trigger compliance issues.
+# ⚠️ POPIA s.69 (Direct Marketing) MANDATES that EVERY direct-marketing
+# message identifies the sender by:
+#   • real name (a natural person OR a registered company name)
+#   • physical address (NOT a P.O. Box, NOT a virtual office)
+#   • working telephone number (someone has to actually answer)
+#   • opt-out method
 #
-# Recommended setup for a Russian-speaking importer per the brief:
-#   - Use a Dubai DMCC address rather than a Moscow address — eases sanctions
-#     friction with JSE-listed and B-BBEE-sensitive SA counterparties.
-#   - Use a working +971 (UAE) or +27 (SA-resident partner) phone, not +7.
-#   - Use a dedicated outreach domain (not the main corporate domain).
+# Fake values = R10M fine per the SA Information Regulator's published
+# enforcement notices. Even one complaint to the Regulator triggers an
+# investigation. Don't ship `TODO_*` placeholders into production.
+#
+# Pre-filled below from autosignal.pro (corporate identity) + offer.md
+# (product). Two fields are unavoidable user input — marked TODO.
 
-name:    "Your Name"
-role:    "Director, Partnerships SADC"
-company: "Your Trading FZE"
-email:   "you@your-outreach-domain.com"
-phone:   "+971 4 000 0000"
-website: "https://your-outreach-domain.com"
-address: "Unit 0000, JLT Cluster X, DMCC, Dubai, United Arab Emirates"
-country: "United Arab Emirates"
+name:    "Autosignal Team"                # Or your real name — personal name lifts reply-rate ~3-5x vs team alias
+role:    "Wholesale Vehicle Imports — SADC Markets"
+company: "Autosignal"                     # Use your registered legal name if it differs (e.g. "Autosignal Trading FZE")
+email:   "admin@autosignal.pro"           # Working Zoho corp mailbox — replies forward here from Smartlead
+phone:   "TODO_REAL_PHONE"                # ⚠️ MANDATORY — real working number, +<country> <city> <number>
+website: "https://autosignal.pro"
+address: "TODO_REAL_ADDRESS"              # ⚠️ MANDATORY — physical legal address, NOT P.O.Box, NOT virtual office
+country: "TODO_FROM_ADDRESS"              # auto-derived from address line (e.g. "United Arab Emirates" / "Georgia")
 
-# What we sell — the analyzer / personalizer reference this loosely.
-product_short: "wholesale RHD Chinese-make passenger and commercial vehicles, lots of 100-300 units"
+# Product short — used by Claude when generating per-lead first_touch copy.
+# This stays generic enough to match offer.md without constraining the LLM.
+product_short: "wholesale RHD Chinese-make passenger and commercial vehicles, lots of 100-300 units (Chery, Omoda, Jaecoo, GWM, Haval, JAC, FAW, Yutong, Sinotruk)"
