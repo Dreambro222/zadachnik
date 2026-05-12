@@ -75,17 +75,31 @@ log "Installing requirements..."
 sudo -u "${SERVICE_USER}" "${VENV_DIR}/bin/pip" install -q --upgrade pip
 sudo -u "${SERVICE_USER}" "${VENV_DIR}/bin/pip" install -q -r "${OUTREACH_DIR}/requirements.txt"
 
-# ---------- 4. .env skeleton + leads.db ----------
+# ---------- 4. .env: copy skeleton + inject secrets passed via env ----------
 ENV_FILE="${OUTREACH_DIR}/.env"
 if [[ ! -f "${ENV_FILE}" ]]; then
-    log "Creating skeleton .env (you MUST fill SMARTLEAD_API_KEY before running webhook!)"
+    log "Creating .env from .env.example..."
     sudo -u "${SERVICE_USER}" cp "${OUTREACH_DIR}/.env.example" "${ENV_FILE}"
-    # Pre-generate the HMAC secret so Smartlead webhook signatures work out of the box.
-    HMAC=$(openssl rand -hex 32)
-    sudo -u "${SERVICE_USER}" sed -i "s|^SMARTLEAD_WEBHOOK_SECRET=.*|SMARTLEAD_WEBHOOK_SECRET=${HMAC}|" "${ENV_FILE}"
-    log "  → generated SMARTLEAD_WEBHOOK_SECRET in .env. Paste the same value"
-    log "    into Smartlead → Campaigns → Webhooks → Secret when registering."
 fi
+
+# Use the HMAC secret the operator passed in (so the same value can be set
+# on a coordinator workstation too); otherwise generate a fresh one.
+HMAC="${SMARTLEAD_WEBHOOK_SECRET:-$(openssl rand -hex 32)}"
+sudo -u "${SERVICE_USER}" sed -i \
+    "s|^SMARTLEAD_WEBHOOK_SECRET=.*|SMARTLEAD_WEBHOOK_SECRET=${HMAC}|" \
+    "${ENV_FILE}"
+
+# Pre-fill SMARTLEAD_API_KEY if passed in env (avoids a manual edit step).
+if [[ -n "${SMARTLEAD_API_KEY:-}" ]]; then
+    sudo -u "${SERVICE_USER}" sed -i \
+        "s|^SMARTLEAD_API_KEY=.*|SMARTLEAD_API_KEY=${SMARTLEAD_API_KEY}|" \
+        "${ENV_FILE}"
+    log "  → SMARTLEAD_API_KEY written to .env"
+else
+    log "  → SMARTLEAD_API_KEY not provided — edit ${ENV_FILE} manually before"
+    log "    running campaign-init / push."
+fi
+log "  → SMARTLEAD_WEBHOOK_SECRET set (echo with: grep ^SMARTLEAD_WEBHOOK_SECRET ${ENV_FILE})"
 
 log "Initialising leads.db (idempotent)..."
 sudo -u "${SERVICE_USER}" "${VENV_DIR}/bin/python" -m outreach init || true
