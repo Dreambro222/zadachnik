@@ -1,27 +1,27 @@
 # Identity baked into every outreach email (signature + POPIA s.69 footer).
 #
-# ⚠️ POPIA s.69 (Direct Marketing) MANDATES that EVERY direct-marketing
-# message identifies the sender by:
-#   • real name (a natural person OR a registered company name)
-#   • physical address (NOT a P.O. Box, NOT a virtual office)
-#   • working telephone number (someone has to actually answer)
-#   • opt-out method
+# Legal entity per Hong Kong Business Registration No. 80208268-000-04-26-7
+# (valid 16/04/2026 — 15/04/2027). Address copied verbatim from the BR
+# certificate.
 #
-# Fake values = R10M fine per the SA Information Regulator's published
-# enforcement notices. Even one complaint to the Regulator triggers an
-# investigation. Don't ship `TODO_*` placeholders into production.
+# Brand identity: "Easy.car" (https://easy.car). The corporate Zoho mailbox
+# admin@autosignal.pro is used as the working inbox — replies land there.
 #
-# Pre-filled below from autosignal.pro (corporate identity) + offer.md
-# (product). Two fields are unavoidable user input — marked TODO.
+# POPIA s.69 (Direct Marketing) MANDATES that EVERY direct-marketing
+# message identifies the sender by: real name (a natural person OR a
+# registered company name), physical address (NOT a P.O. Box, NOT a virtual
+# office), working telephone number (someone has to actually answer),
+# opt-out method. The only TODO is the phone — once that's in, the package
+# is fully compliant.
 
-name:    "Autosignal Team"                # Or your real name — personal name lifts reply-rate ~3-5x vs team alias
+name:    "Easy.car team"
 role:    "Wholesale Vehicle Imports — SADC Markets"
-company: "Autosignal"                     # Use your registered legal name if it differs (e.g. "Autosignal Trading FZE")
-email:   "admin@autosignal.pro"           # Working Zoho corp mailbox — replies forward here from Smartlead
-phone:   "TODO_REAL_PHONE"                # ⚠️ MANDATORY — real working number, +<country> <city> <number>
-website: "https://autosignal.pro"
-address: "TODO_REAL_ADDRESS"              # ⚠️ MANDATORY — physical legal address, NOT P.O.Box, NOT virtual office
-country: "TODO_FROM_ADDRESS"              # auto-derived from address line (e.g. "United Arab Emirates" / "Georgia")
+company: "Easy Car Global Limited"          # registered HK entity
+email:   "admin@autosignal.pro"              # working Zoho corp mailbox
+phone:   "TODO_REAL_PHONE"                   # ⚠️ MANDATORY — real working number with country code
+website: "https://easy.car"
+address: "Unit 1618A, 16/F, Pioneer Centre, 750 Nathan Road, Mong Kok, Hong Kong"
+country: "Hong Kong SAR"
 
 # Product short — used by Claude when generating per-lead first_touch copy.
 # This stays generic enough to match offer.md without constraining the LLM.
