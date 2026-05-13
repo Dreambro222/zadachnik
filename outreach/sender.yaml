@@ -18,7 +18,7 @@ name:    "Easy.car team"
 role:    "Wholesale Vehicle Imports — SADC Markets"
 company: "Easy Car Global Limited"          # registered HK entity
 email:   "admin@autosignal.pro"              # working Zoho corp mailbox
-phone:   "TODO_REAL_PHONE"                   # ⚠️ MANDATORY — real working number with country code
+phone:   ""                                  # intentionally blank — email-only for v1 outreach
 website: "https://easy.car"
 address: "Unit 1618A, 16/F, Pioneer Centre, 750 Nathan Road, Mong Kok, Hong Kong"
 country: "Hong Kong SAR"

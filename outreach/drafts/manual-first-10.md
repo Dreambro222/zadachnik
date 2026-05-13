@@ -78,9 +78,9 @@ We're a Hong Kong-based wholesale importer of RHD Chinese-brand vehicles
 direct from the OEM. NRCS Letters of Authority and genuine OEM
 authorisation letters are in place for: Chery / Omoda / Jaecoo / Jetour /
 GWM / Haval / Tank / BAIC / BYD / JAC / Geely / MG; plus FAW / Foton /
-Joylong / Sinotruk on commercial. We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+Joylong / Sinotruk on commercial. We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
-Our standard lot sizing is 100–300 units
+We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine
 (FOB China or CIF Durban / Cape Town / PE, 6-week lead time), but we
 structure a test shipment for the first engagement so you can validate
 specs, paperwork and aftersales without committing to scale.
@@ -114,7 +114,6 @@ Best,
 Easy.car team
 Wholesale Vehicle Imports — SADC Markets
 admin@autosignal.pro · https://easy.car
-[TODO_PHONE]
 
 Easy Car Global Limited
 Unit 1618A, 16/F, Pioneer Centre, 750 Nathan Road, Mong Kok, Hong Kong
@@ -145,9 +144,9 @@ heavy truck. NRCS Letters of Authority and OEM authorisation letters are in
 place for: Chery, Omoda, Jaecoo, Jetour, GWM, Haval, Tank, BAIC, BYD, JAC,
 MG, plus FAW / Foton / Joylong / Sinotruk on the commercial side.
 
-We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
-Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
+We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we're set up to structure a smaller
 test shipment for first engagements so you can validate specs, NRCS
 documentation and aftersales without committing to volume up-front.
@@ -191,7 +190,6 @@ Best,
 Easy.car team
 Wholesale Vehicle Imports — SADC Markets
 admin@autosignal.pro · https://easy.car
-[TODO_PHONE]
 
 Easy Car Global Limited
 Unit 1618A, 16/F, Pioneer Centre, 750 Nathan Road, Mong Kok, Hong Kong
@@ -224,9 +222,9 @@ Foton View C2 (2.0L petrol, 16-seater) and Joylong EFi Series. Same
 form-factor as the Toyota HiAce, comparable aftersales cover via the SA
 OEM service network.
 
-We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
-Our standard lot sizing is 100–300 units (FOB China or CIF Durban, 6–8 week
+We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban, 6–8 week
 lead time), but we'll structure a smaller test shipment for a first
 engagement — so Bridge can validate specs, NRCS paperwork and aftersales
 on real units before committing to programme volume.
@@ -260,7 +258,6 @@ Best,
 Easy.car team
 Wholesale Vehicle Imports — SADC Markets
 admin@autosignal.pro · https://easy.car
-[TODO_PHONE]
 
 Easy Car Global Limited
 Unit 1618A, 16/F, Pioneer Centre, 750 Nathan Road, Mong Kok, Hong Kong
@@ -291,9 +288,9 @@ direct from the OEM. NRCS LOA and OEM authorisation letters are in place
 for: Chery, Omoda, Jaecoo, Jetour, GWM, Haval, Tank, BAIC, BYD, JAC,
 Geely, MG; plus FAW / Foton / Joylong / Sinotruk on commercial.
 
-We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
-Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
+We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
 shipment for first engagements so Super Group can validate specs and
 aftersales on real units before scaling.
@@ -326,7 +323,6 @@ Best,
 Easy.car team
 Wholesale Vehicle Imports — SADC Markets
 admin@autosignal.pro · https://easy.car
-[TODO_PHONE]
 
 Easy Car Global Limited
 Unit 1618A, 16/F, Pioneer Centre, 750 Nathan Road, Mong Kok, Hong Kong
@@ -357,9 +353,9 @@ We're a Hong Kong-based wholesale importer of RHD Chinese-brand vehicles,
 direct from the OEM. NRCS LOA and OEM authorisation letters are in place
 for Chery, Omoda, Jaecoo, Jetour, GWM, Haval, Tank, BAIC, BYD, JAC, MG.
 
-We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
-Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
+We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
 shipment for a first engagement so the dealership-ops team can validate
 specs, NRCS paperwork and aftersales on real units before scaling.
@@ -392,7 +388,6 @@ Best,
 Easy.car team
 Wholesale Vehicle Imports — SADC Markets
 admin@autosignal.pro · https://easy.car
-[TODO_PHONE]
 
 Easy Car Global Limited
 Unit 1618A, 16/F, Pioneer Centre, 750 Nathan Road, Mong Kok, Hong Kong
@@ -424,9 +419,9 @@ for everything Eastvaal currently carries, plus: Chery, Omoda, Jaecoo,
 Jetour, Tank, JAC, Geely, MG; and on commercial FAW / Foton / Joylong /
 Sinotruk Sitrak.
 
-We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
-Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
+We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
 shipment for a first engagement so Clive's team can validate specs and
 aftersales without committing to scale up-front.
@@ -468,7 +463,6 @@ Best,
 Easy.car team
 Wholesale Vehicle Imports — SADC Markets
 admin@autosignal.pro · https://easy.car
-[TODO_PHONE]
 
 Easy Car Global Limited
 Unit 1618A, 16/F, Pioneer Centre, 750 Nathan Road, Mong Kok, Hong Kong
@@ -499,9 +493,9 @@ direct from the OEM. NRCS LOA and OEM authorisation letters are in place
 for: BAIC, Foton, GAC, Jetour (your current brands), plus GWM, Haval,
 Tank, MG, Chery, Omoda, Jaecoo, BYD, JAC.
 
-We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
-Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
+We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
 shipment for a first engagement so Colin's team can validate specs and
 aftersales on real units first.
@@ -541,7 +535,6 @@ Best,
 Easy.car team
 Wholesale Vehicle Imports — SADC Markets
 admin@autosignal.pro · https://easy.car
-[TODO_PHONE]
 
 Easy Car Global Limited
 Unit 1618A, 16/F, Pioneer Centre, 750 Nathan Road, Mong Kok, Hong Kong
@@ -575,9 +568,9 @@ We're a Hong Kong-based wholesale importer of RHD Chinese vehicles direct
 from the OEM. NRCS LOA and OEM authorisation in place for Chery, GWM, BYD,
 MG and others on the passenger / SUV side.
 
-We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
-Our standard lot sizing is 100–300 units (FOB China or CIF Durban,
+We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban,
 6-week lead time), but we structure a smaller test shipment for a first
 engagement so Bluu can validate specs and rental-fleet aftersales on real
 units before scaling.
@@ -611,7 +604,6 @@ Best,
 Easy.car team
 Wholesale Vehicle Imports — SADC Markets
 admin@autosignal.pro · https://easy.car
-[TODO_PHONE]
 
 Easy Car Global Limited
 Unit 1618A, 16/F, Pioneer Centre, 750 Nathan Road, Mong Kok, Hong Kong
@@ -647,9 +639,9 @@ authorisation letters are in place for Chery, Omoda, Jaecoo, Jetour, plus
 brands not in Motus's post-Penta portfolio: GWM, Haval, Tank, BAIC, BYD,
 JAC, MG, and on commercial FAW / Foton / Joylong / Sinotruk Sitrak.
 
-We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
-Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
+We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
 shipment for a first engagement — useful during integration when the
 post-Penta supply chain is still settling.
@@ -691,7 +683,6 @@ Best,
 Easy.car team
 Wholesale Vehicle Imports — SADC Markets
 admin@autosignal.pro · https://easy.car
-[TODO_PHONE]
 
 Easy Car Global Limited
 Unit 1618A, 16/F, Pioneer Centre, 750 Nathan Road, Mong Kok, Hong Kong
@@ -718,12 +709,14 @@ Chinese-brand vehicles direct from the OEM — NRCS LOA and OEM
 authorisation in place for Chery, Omoda, Jaecoo, Jetour, GWM, Haval,
 Tank, BAIC, BYD, JAC, MG, plus FAW / Foton / Sinotruk on commercial.
 
-We're already shipping into Durban for SA and SADC dealer/fleet partners,
-and actively widening that network. Standard lot sizing is 100–300 units
-(FOB China or CIF Durban), but we structure a test shipment for first
-engagements. Best landed pricing in market — open-book supplier invoices
-on request. Happy to fly into Sandton for a working session, and bring a
-Chinese OEM rep along.
+We've shipped ~3,000 vehicles into Uzbekistan and ~2,000 into Russia over
+the past 18 months, with active routes into the Middle East via Dubai.
+SA / SADC is the current expansion lane — already running into Durban,
+actively widening the dealer network. We supply from 100-unit lots up
+(larger lots routine), FOB China or CIF Durban. For a first engagement
+we structure a smaller test shipment. Best landed pricing in market —
+open-book supplier invoices on request. Happy to fly into Sandton for a
+working session, and bring a Chinese OEM rep along.
 
 Two things would help:
   1. Which Chinese brands or models is Barloworld currently sourcing? —
