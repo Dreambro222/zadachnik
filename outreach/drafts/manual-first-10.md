@@ -78,7 +78,9 @@ We're a Hong Kong-based wholesale importer of RHD Chinese-brand vehicles
 direct from the OEM. NRCS Letters of Authority and genuine OEM
 authorisation letters are in place for: Chery / Omoda / Jaecoo / Jetour /
 GWM / Haval / Tank / BAIC / BYD / JAC / Geely / MG; plus FAW / Foton /
-Joylong / Sinotruk on commercial. Our standard lot sizing is 100–300 units
+Joylong / Sinotruk on commercial. We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+
+Our standard lot sizing is 100–300 units
 (FOB China or CIF Durban / Cape Town / PE, 6-week lead time), but we
 structure a test shipment for the first engagement so you can validate
 specs, paperwork and aftersales without committing to scale.
@@ -142,6 +144,8 @@ direct from the OEM — passenger, SUV, bakkie, minibus, light commercial and
 heavy truck. NRCS Letters of Authority and OEM authorisation letters are in
 place for: Chery, Omoda, Jaecoo, Jetour, GWM, Haval, Tank, BAIC, BYD, JAC,
 MG, plus FAW / Foton / Joylong / Sinotruk on the commercial side.
+
+We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
 
 Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we're set up to structure a smaller
@@ -220,6 +224,8 @@ Foton View C2 (2.0L petrol, 16-seater) and Joylong EFi Series. Same
 form-factor as the Toyota HiAce, comparable aftersales cover via the SA
 OEM service network.
 
+We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+
 Our standard lot sizing is 100–300 units (FOB China or CIF Durban, 6–8 week
 lead time), but we'll structure a smaller test shipment for a first
 engagement — so Bridge can validate specs, NRCS paperwork and aftersales
@@ -285,6 +291,8 @@ direct from the OEM. NRCS LOA and OEM authorisation letters are in place
 for: Chery, Omoda, Jaecoo, Jetour, GWM, Haval, Tank, BAIC, BYD, JAC,
 Geely, MG; plus FAW / Foton / Joylong / Sinotruk on commercial.
 
+We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+
 Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
 shipment for first engagements so Super Group can validate specs and
@@ -348,6 +356,8 @@ lane on the Chinese-brand SKUs in your portfolio.
 We're a Hong Kong-based wholesale importer of RHD Chinese-brand vehicles,
 direct from the OEM. NRCS LOA and OEM authorisation letters are in place
 for Chery, Omoda, Jaecoo, Jetour, GWM, Haval, Tank, BAIC, BYD, JAC, MG.
+
+We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
 
 Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
@@ -413,6 +423,8 @@ direct from the OEM. NRCS LOA and OEM authorisation letters are in place
 for everything Eastvaal currently carries, plus: Chery, Omoda, Jaecoo,
 Jetour, Tank, JAC, Geely, MG; and on commercial FAW / Foton / Joylong /
 Sinotruk Sitrak.
+
+We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
 
 Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
@@ -486,6 +498,8 @@ We're a Hong Kong-based wholesale importer of RHD Chinese-brand vehicles
 direct from the OEM. NRCS LOA and OEM authorisation letters are in place
 for: BAIC, Foton, GAC, Jetour (your current brands), plus GWM, Haval,
 Tank, MG, Chery, Omoda, Jaecoo, BYD, JAC.
+
+We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
 
 Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
@@ -561,6 +575,8 @@ We're a Hong Kong-based wholesale importer of RHD Chinese vehicles direct
 from the OEM. NRCS LOA and OEM authorisation in place for Chery, GWM, BYD,
 MG and others on the passenger / SUV side.
 
+We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+
 Our standard lot sizing is 100–300 units (FOB China or CIF Durban,
 6-week lead time), but we structure a smaller test shipment for a first
 engagement so Bluu can validate specs and rental-fleet aftersales on real
@@ -631,6 +647,8 @@ authorisation letters are in place for Chery, Omoda, Jaecoo, Jetour, plus
 brands not in Motus's post-Penta portfolio: GWM, Haval, Tank, BAIC, BYD,
 JAC, MG, and on commercial FAW / Foton / Joylong / Sinotruk Sitrak.
 
+We're already shipping container and RoRo lots into Durban for SA and SADC dealer/fleet partners — actively widening that network now, which is why we're reaching out.
+
 Our standard lot sizing is 100–300 units (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
 shipment for a first engagement — useful during integration when the
@@ -700,10 +718,12 @@ Chinese-brand vehicles direct from the OEM — NRCS LOA and OEM
 authorisation in place for Chery, Omoda, Jaecoo, Jetour, GWM, Haval,
 Tank, BAIC, BYD, JAC, MG, plus FAW / Foton / Sinotruk on commercial.
 
-Standard lot sizing is 100–300 units (FOB China or CIF Durban), but we
-structure a test shipment for first engagements. Best landed pricing in
-market — open-book supplier invoices on request. Happy to fly into
-Sandton for a working session, and bring a Chinese OEM rep along.
+We're already shipping into Durban for SA and SADC dealer/fleet partners,
+and actively widening that network. Standard lot sizing is 100–300 units
+(FOB China or CIF Durban), but we structure a test shipment for first
+engagements. Best landed pricing in market — open-book supplier invoices
+on request. Happy to fly into Sandton for a working session, and bring a
+Chinese OEM rep along.
 
 Two things would help:
   1. Which Chinese brands or models is Barloworld currently sourcing? —
