@@ -78,7 +78,7 @@ We're a Hong Kong-based wholesale importer of RHD Chinese-brand vehicles
 direct from the OEM. NRCS Letters of Authority and genuine OEM
 authorisation letters are in place for: Chery / Omoda / Jaecoo / Jetour /
 GWM / Haval / Tank / BAIC / BYD / JAC / Geely / MG; plus FAW / Foton /
-Joylong / Sinotruk on commercial. We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
+Joylong / Sinotruk on commercial. We ship at volume today — roughly 3,000 vehicles into Uzbekistan and another 2,000+ across other Central Asia and GCC markets over the past 3 years, with active container and RoRo routes hubbed via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
 We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine
 (FOB China or CIF Durban / Cape Town / PE, 6-week lead time), but we
@@ -144,7 +144,7 @@ heavy truck. NRCS Letters of Authority and OEM authorisation letters are in
 place for: Chery, Omoda, Jaecoo, Jetour, GWM, Haval, Tank, BAIC, BYD, JAC,
 MG, plus FAW / Foton / Joylong / Sinotruk on the commercial side.
 
-We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and another 2,000+ across other Central Asia and GCC markets over the past 3 years, with active container and RoRo routes hubbed via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
 We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we're set up to structure a smaller
@@ -222,7 +222,7 @@ Foton View C2 (2.0L petrol, 16-seater) and Joylong EFi Series. Same
 form-factor as the Toyota HiAce, comparable aftersales cover via the SA
 OEM service network.
 
-We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and another 2,000+ across other Central Asia and GCC markets over the past 3 years, with active container and RoRo routes hubbed via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
 We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban, 6–8 week
 lead time), but we'll structure a smaller test shipment for a first
@@ -288,7 +288,7 @@ direct from the OEM. NRCS LOA and OEM authorisation letters are in place
 for: Chery, Omoda, Jaecoo, Jetour, GWM, Haval, Tank, BAIC, BYD, JAC,
 Geely, MG; plus FAW / Foton / Joylong / Sinotruk on commercial.
 
-We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and another 2,000+ across other Central Asia and GCC markets over the past 3 years, with active container and RoRo routes hubbed via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
 We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
@@ -353,7 +353,7 @@ We're a Hong Kong-based wholesale importer of RHD Chinese-brand vehicles,
 direct from the OEM. NRCS LOA and OEM authorisation letters are in place
 for Chery, Omoda, Jaecoo, Jetour, GWM, Haval, Tank, BAIC, BYD, JAC, MG.
 
-We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and another 2,000+ across other Central Asia and GCC markets over the past 3 years, with active container and RoRo routes hubbed via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
 We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
@@ -419,7 +419,7 @@ for everything Eastvaal currently carries, plus: Chery, Omoda, Jaecoo,
 Jetour, Tank, JAC, Geely, MG; and on commercial FAW / Foton / Joylong /
 Sinotruk Sitrak.
 
-We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and another 2,000+ across other Central Asia and GCC markets over the past 3 years, with active container and RoRo routes hubbed via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
 We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
@@ -493,7 +493,7 @@ direct from the OEM. NRCS LOA and OEM authorisation letters are in place
 for: BAIC, Foton, GAC, Jetour (your current brands), plus GWM, Haval,
 Tank, MG, Chery, Omoda, Jaecoo, BYD, JAC.
 
-We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and another 2,000+ across other Central Asia and GCC markets over the past 3 years, with active container and RoRo routes hubbed via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
 We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
@@ -561,14 +561,14 @@ Car Rental) — please forward if `reservations@` isn't the right inbox.
 Bluu runs 13,500 vehicles across 120+ branches in SA, Namibia and
 Botswana. The Chinese-brand economy segment now lands materially below
 equivalent Toyota / VW per-unit cost, with aftersales coverage that has
-matured significantly over the past 18 months. We supply these brands
+matured significantly over the past 3 years. We supply these brands
 direct from China.
 
 We're a Hong Kong-based wholesale importer of RHD Chinese vehicles direct
 from the OEM. NRCS LOA and OEM authorisation in place for Chery, GWM, BYD,
 MG and others on the passenger / SUV side.
 
-We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and another 2,000+ across other Central Asia and GCC markets over the past 3 years, with active container and RoRo routes hubbed via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
 We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban,
 6-week lead time), but we structure a smaller test shipment for a first
@@ -639,7 +639,7 @@ authorisation letters are in place for Chery, Omoda, Jaecoo, Jetour, plus
 brands not in Motus's post-Penta portfolio: GWM, Haval, Tank, BAIC, BYD,
 JAC, MG, and on commercial FAW / Foton / Joylong / Sinotruk Sitrak.
 
-We ship at volume today — roughly 3,000 vehicles into Uzbekistan and 2,000 into Russia over the past 18 months, with active container and RoRo routes to the Middle East via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
+We ship at volume today — roughly 3,000 vehicles into Uzbekistan and another 2,000+ across other Central Asia and GCC markets over the past 3 years, with active container and RoRo routes hubbed via Dubai. SA and SADC is our current expansion lane: flows into Durban are already running for dealer and fleet partners, and we're actively widening that network — which is why we're reaching out.
 
 We supply from 100-unit lots up — typical range 100–300 per shipment, larger lots routine (FOB China or CIF Durban /
 Cape Town / PE, 6-week lead time), but we structure a smaller test
@@ -709,8 +709,9 @@ Chinese-brand vehicles direct from the OEM — NRCS LOA and OEM
 authorisation in place for Chery, Omoda, Jaecoo, Jetour, GWM, Haval,
 Tank, BAIC, BYD, JAC, MG, plus FAW / Foton / Sinotruk on commercial.
 
-We've shipped ~3,000 vehicles into Uzbekistan and ~2,000 into Russia over
-the past 18 months, with active routes into the Middle East via Dubai.
+We've shipped ~3,000 vehicles into Uzbekistan and another ~2,000+ across
+Central Asia and GCC markets over the past 3 years, with active routes
+hubbed via Dubai.
 SA / SADC is the current expansion lane — already running into Durban,
 actively widening the dealer network. We supply from 100-unit lots up
 (larger lots routine), FOB China or CIF Durban. For a first engagement
